@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF
+   xmlns:dc="http://purl.org/dc/elements/"
+   xmlns:dct="http://purl.org/dc/terms/"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
+   xmlns:skos="http://www.w3.org/2004/02/skos/core#"
+   xmlns:time="http://www.w3.org/2006/time#"
+   xmlns:xsd="http://www.w3.org/2001/XMLSchema#"
+>
+<rdf:Description rdf:about="https://vocabs.acdh.oeaw.ac.at/date/$1$2$3-$4-$5">
+  <rdf:type rdf:resource="http://www.w3.org/2004/02/skos/core#Concept"/>
+  <skos:inScheme rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/ConceptScheme"/>
+  <skos:prefLabel xml:lang="en">$1$2$3-$4-$5</skos:prefLabel>
+  <rdfs:label rdf:datatype="xsd:date">$1$2$3-$4-$5</rdfs:label>
+  <skos:altLabel xml:lang="en">$5 December $1$2$3</skos:altLabel>
+  <skos:altLabel xml:lang="en">$5-$4-$1$2$3</skos:altLabel>
+  <skos:altLabel xml:lang="en">$5/$4/$1$2$3</skos:altLabel>
+  <skos:altLabel xml:lang="en">$5/$4/$1$2$3</skos:altLabel>
+  <skos:definition xml:lang="en">$5 December $1$2$3 in ISO8601 (the Gregorian and proleptic Gregorian calendar)</skos:definition>
+  <time:hasTRS rdf:resource="http://www.opengis.net/def/uom/ISO-8601/0/Gregorian"/>
+  <time:monthOfYear rdf:resource="http://www.w3.org/ns/time/gregorian/December"/>
+  <time:DayOfWeek rdf:resource="http://www.w3.org/ns/time/gregorian/Monday"/>
+  <skos:closeMatch rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/julian_calendar/1925-11-24"/>
+  <skos:broader rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/$1$2$3-$4"/>
+  <rdf:Description rdf:about="https://vocabs.acdh.oeaw.ac.at/date/1925-12-07">
+    <rdf:type rdf:resource="https://vocabs.acdh.oeaw.ac.at/unit_of_time/day"/>
+    <rdf:type rdf:resource="http://www.w3.org/2004/02/skos/core#Concept"/>
+    <skos:inScheme rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/ConceptScheme"/>
+    <skos:prefLabel xml:lang="en">1925-12-07</skos:prefLabel>
+    <rdfs:label rdf:datatype="xsd:date">1925-12-07</rdfs:label>
+    <skos:altLabel xml:lang="en">7 December 1925</skos:altLabel>
+    <skos:altLabel xml:lang="en">07-12-1925</skos:altLabel>
+    <skos:altLabel xml:lang="en">07/12/1925</skos:altLabel>
+    <skos:altLabel xml:lang="en">12/07/1925</skos:altLabel>
+    <skos:definition xml:lang="en">7 December 1925 in ISO8601 (the Gregorian and proleptic Gregorian calendar)</skos:definition>
+    <time:hasTRS rdf:resource="http://www.opengis.net/def/uom/ISO-8601/0/Gregorian"/>
+    <time:monthOfYear rdf:resource="http://www.w3.org/ns/time/gregorian/December"/>
+    <time:DayOfWeek rdf:resource="http://www.w3.org/ns/time/gregorian/Monday"/>
+    <skos:closeMatch rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/julian_calendar/1925-11-24"/>
+    <skos:broader rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/1925-12"/>
+    <time:intervalMeets rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/1925-12-08"/>
+    <time:intervalMetBy rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/1925-12-06"/>
+  </rdf:Description>
+</rdf:Description>
+
+<rdf:Description rdf:about="https://vocabs.acdh.oeaw.ac.at/date/julian_calendar/1925-11-24">
+  <skos:closeMatch rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/$1$2$3-$4-$5"/>
+</rdf:Description>
+
+</rdf:RDF>

@@ -1,0 +1,8 @@
+day (3000 x 2) x 365 = 2.19 million
+month (3000 x 2) x 12 = 72000
+year 3000 x 2 = 6000
+decade 600 
+century 60
+millennium 6
+
+TOTAL 2268666 (ca 2.3 million)

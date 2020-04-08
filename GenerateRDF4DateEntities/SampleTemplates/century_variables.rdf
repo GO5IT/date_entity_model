@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF
+   xmlns:dc="http://purl.org/dc/elements/"
+   xmlns:dct="http://purl.org/dc/terms/"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
+   xmlns:skos="http://www.w3.org/2004/02/skos/core#"
+   xmlns:time="http://www.w3.org/2006/time#"
+   xmlns:xsd="http://www.w3.org/2001/XMLSchema#"
+>
+<rdf:Description rdf:about="https://vocabs.acdh.oeaw.ac.at/date/$1">
+  <rdf:type rdf:resource="https://vocabs.acdh.oeaw.ac.at/unit_of_time/century"/>
+  <rdf:type rdf:resource="http://www.w3.org/2004/02/skos/core#Concept"/>
+  <skos:inScheme rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/ConceptScheme"/>
+  <skos:prefLabel xml:lang="en">20th century</skos:prefLabel>
+  <rdfs:label xml:lang="en">20th century</rdfs:label>
+  <rdfs:label rdf:datatype="xsd:date">1901/2000</rdfs:label>
+  <skos:definition xml:lang="en">A century from 1901 to 2000 in ISO8601 (the Gregorian and proleptic Gregorian calendar)</skos:definition>
+  <time:hasTRS rdf:resource="http://www.opengis.net/def/uom/ISO-8601/0/Gregorian"/>
+  <skos:exactMatch rdf:resource="http://dbpedia.org/resource/20th_century"/>
+  <skos:exactMatch rdf:resource="http://yago-knowledge.org/resource/20th_century"/>
+  <skos:exactMatch rdf:resource="http://de.dbpedia.org/resource/20._Jahrhundert"/>
+  <skos:exactMatch rdf:resource="http://www.wikidata.org/entity/Q6927"/>
+  <skos:exactMatch rdf:resource="http://id.loc.gov/authorities/subjects/sh2002012476"/>
+  <skos:exactMatch rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/1901%2F2000"/>
+  <skos:narrower rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/192"/>
+  <skos:broader rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/1001%2F2000"/>
+  <time:intervalMeets rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/$1"/>
+  <time:intervalMetBy rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/$1"/>
+</rdf:Description>
+
+<rdf:Description rdf:about="http://de.dbpedia.org/resource/20._Jahrhundert">
+  <skos:exactMatch rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/$1"/>
+</rdf:Description>
+<rdf:Description rdf:about="http://dbpedia.org/resource/20th_century">
+  <skos:exactMatch rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/$1"/>
+</rdf:Description>
+<rdf:Description rdf:about="http://www.wikidata.org/entity/Q6927">
+  <skos:exactMatch rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/$1"/>
+</rdf:Description>
+<rdf:Description rdf:about="http://yago-knowledge.org/resource/20th_century">
+  <skos:exactMatch rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/$1"/>
+</rdf:Description>
+<rdf:Description rdf:about="http://id.loc.gov/authorities/subjects/sh2002012476">
+  <skos:exactMatch rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/$1"/>
+</rdf:Description>
+<rdf:Description rdf:about="https://vocabs.acdh.oeaw.ac.at/date/1901%2F2000">
+  <skos:exactMatch rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/$1"/>
+</rdf:Description>
+<rdf:Description rdf:about="https://vocabs.acdh.oeaw.ac.at/date/$1">
+  <skos:exactMatch rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/1901%2F2000"/>
+</rdf:Description>
+
+</rdf:RDF>
