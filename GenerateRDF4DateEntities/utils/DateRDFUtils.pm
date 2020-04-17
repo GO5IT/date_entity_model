@@ -103,18 +103,18 @@ sub mm2txt{
   return $result;
 }
 
-## map numeber to ordinal : 1 -> st , 2 -> nd etc.
+## map cardinal number to ordinal : 1 -> 1st , 2 -> 2nd etc.
 sub numeral2ordinal {
-  my $th = shift; 
+  my $th = shift;
   $th .=  "th";
   ## but make provision for 11th / 12th / 13th
   if ( $th =~ m/(^|[^1])[123]th$/ ) {
-    $th =~ s/1th$/1st/;     
+    $th =~ s/1th$/1st/;
     $th =~ s/2th$/2nd/;
     $th =~ s/3th$/3rd/;
-  } 
+  }
   return $th;
-}  
+}
 
 
 ## map year to $decade
@@ -136,5 +136,18 @@ sub year2semium{
 sub year2onedigit{
   my $yyyy = shift;
   $yyyy =~ s/\d{3}$//;
+  return $yyyy;
+}
+
+sub year2firsttwo{
+  my $yyyy = shift;
+  $yyyy =~ s/\d{2}//;
+  return $yyyy;
+}
+
+sub year2thirdone{
+  my $yyyy = shift;
+  $yyyy =~ s/\d{1}$//;
+  $yyyy =~ s/\d{2}//;
   return $yyyy;
 }

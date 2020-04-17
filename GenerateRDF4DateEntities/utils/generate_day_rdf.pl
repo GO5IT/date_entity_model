@@ -9,8 +9,8 @@ use DateTime::Calendar::Julian qw(:all);
 use DateRDFUtils;
 use Getopt::Std;
 
-my $DEFAULT_FROM = "1901-01-01";
-my $DEFAULT_TO   = "2000-12-31";
+my $DEFAULT_FROM = "-101-01-01";
+my $DEFAULT_TO   = "101-01-01";
 
 our ($opt_h, $opt_l, $opt_t, $opt_H, $opt_f, $opt_d);
 getopts('hl:Hdf:t:');
@@ -66,18 +66,46 @@ print $DateRDFUtils::rdfstart unless ($opt_H || $opt_d);
 
 ###################
 my $n = 0;
+my $prevdate;
+my $nextdate;
+
 DAY: while ( DateTime->compare( $dt, $dtmax ) <= 0 ) {
    ## limit with -l ?
    last DAY if ( $opt_l && ($opt_l <= $n++) );
    my $dtjul = DateTime::Calendar::Julian->from_object( object => $dt );
    if ($opt_d) {
        print $dt->date() . "\t" . $dt->day_name() . "\tjulian:\t" . $dtjul->date() . "\n";
-   } else {
+   } else { 
       my $date    = $dt->date();
       my $wdaytxt = $dt->day_name();
       my $jdate   = $dtjul->date();
       ## derive all others automatically
       my ($yyyy, $mm, $dd) = ($date =~ m/^(-?\d\d\d\d)-(\d\d)-(\d\d)$/);
+      ## separate $yyyy and its possible "-" 
+      my $bcsign = "";
+      my $nosignyyyy = $yyyy; 
+      if ( $nosignyyyy =~ s/^-// ) {
+         $bcsign = "-"
+      }
+
+      ## handle previous and next ...   
+      my $prev_and_next = "";
+      ## incement date ...
+      $dt->add(days=>1);
+      $nextdate = $dt->date();  
+      $prev_and_next = qq{<time:intervalMeets rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/$nextdate"/>};     
+      if ( $prevdate ) { $prev_and_next .= "\n" . qq{        <time:intervalMetBy rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/$prevdate"/>}} 
+      $prevdate = $date;  ## store current date as $prevdate
+
+      my $mm2digit=sprintf("%+.2d", $mm);
+      #my $mm2digittake=~ s/^\+//;
+      my $mm2digitplus = $mm2digit + 1;
+      my $mm2digitminus = $mm2digit - 1;
+
+      my $dd2digit=sprintf("%+.2d", $dd);
+      #my $dd2digittake=~ s/^\+//;
+      my $dd2digitplus = $dd2digit + 1;
+      my $dd2digitminus = $dd2digit - 1;
 
       ## mm to text
       my $mmtxt = DateRDFUtils::mm2txt($mm, "en");
@@ -87,31 +115,35 @@ DAY: while ( DateTime->compare( $dt, $dtmax ) <= 0 ) {
 
       ## 07 => 7
       (my $ddx = $dd ) =~ s/^0//;
+      ## make an additional altLabel:
+      my $ddx_altlabel = ""; 
+      if ($dd =~ m/^0/) {
+         $ddx_altlabel = "\n" . qq{        <skos:altLabel xml:lang="en">$ddx $mmtxt $yyyy</skos:altLabel>}
+      }
+
       ## x1 => x1st ; 2 => 2nd etc.
       my $ddth = DateRDFUtils::numeral2ordinal($ddx);
 
        ############################ fill TEMPLATE and print
       my $output =  << "EOF";
-      <rdf:Description rdf:about="https://vocabs.acdh.oeaw.ac.at/date/$yyyy-$mm-$dd">
+      <rdf:Description rdf:about="https://vocabs.acdh.oeaw.ac.at/date/$date">
         <rdf:type rdf:resource="https://vocabs.acdh.oeaw.ac.at/unit_of_time/day"/>
         <rdf:type rdf:resource="http://www.w3.org/2004/02/skos/core#Concept"/>
         <skos:inScheme rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/conceptScheme"/>
-        <skos:prefLabel xml:lang="en">$yyyy-$mm-$dd</skos:prefLabel>
+        <skos:prefLabel xml:lang="en">$date</skos:prefLabel>
         <rdfs:label rdf:datatype="xsd:date">$yyyy-$mm-$dd</rdfs:label>
-        <skos:altLabel xml:lang="en">$dd $mmtxt $yyyy</skos:altLabel>
-        <skos:altLabel xml:lang="en">$dd-$mm-$yyyy</skos:altLabel>
-        <skos:altLabel xml:lang="en">$dd/$mm/$yyyy</skos:altLabel>
-        <skos:altLabel xml:lang="en">$dd/$mm/$yyyy</skos:altLabel>
+        <skos:altLabel xml:lang="en">$dd $mmtxt $yyyy</skos:altLabel>${ddx_altlabel}
+        <skos:altLabel xml:lang="en">$bcsign$dd-$mm-$nosignyyyy</skos:altLabel>
+        <skos:altLabel xml:lang="en">$bcsign$dd/$mm/$nosignyyyy</skos:altLabel>
+        <skos:altLabel xml:lang="en">$bcsign$mm/$dd/$nosignyyyy</skos:altLabel>
         <skos:definition xml:lang="en">$ddth $mmtxt $yyyy in ISO8601 (the Gregorian and proleptic Gregorian calendar)</skos:definition>
+        <skos:note>With regard to Date Entity modelling, documentation should be consulted at https://vocabs.acdh-dev.oeaw.ac.at/date/. It incldues information about URI syntax, ISO8601 conventions, and data enrichment among others.</skos:note>
         <time:hasTRS rdf:resource="http://www.opengis.net/def/uom/ISO-8601/0/Gregorian"/>
         <time:monthOfYear rdf:resource="http://www.w3.org/ns/time/gregorian/$mmtxt"/>
         <time:DayOfWeek rdf:resource="http://www.w3.org/ns/time/gregorian/$wdaytxt"/>
         <skos:closeMatch rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/julian_calendar/$jdate"/>
         <skos:broader rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/$yyyy-$mm"/>
-      </rdf:Description>
-
-      <rdf:Description rdf:about="https://vocabs.acdh.oeaw.ac.at/date/julian_calendar/$jdate">
-      <skos:closeMatch rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/$yyyy-$mm-$dd"/>
+        $prev_and_next
       </rdf:Description>
 
 EOF
@@ -119,7 +151,7 @@ EOF
       print "$output";
 
    }
-   $dt->add(days=>1);
+
 }
 
 ###################
