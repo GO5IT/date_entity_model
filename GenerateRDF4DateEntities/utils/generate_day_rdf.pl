@@ -69,6 +69,15 @@ my $n = 0;
 my $prevdate;
 my $nextdate;
 
+## get $datefrom - 1 for the FIRST day in the line... 
+my $dtprev = $dt; 
+$dtprev->add(days=>-1);
+$prevdate = $dtprev->date();
+## increment again!
+$dt->add(days => 1);
+
+
+
 DAY: while ( DateTime->compare( $dt, $dtmax ) <= 0 ) {
    ## limit with -l ?
    last DAY if ( $opt_l && ($opt_l <= $n++) );
@@ -88,15 +97,11 @@ DAY: while ( DateTime->compare( $dt, $dtmax ) <= 0 ) {
          $bcsign = "-"
       }
 
-      ## handle previous and next ...   
-      my $prev_and_next = "";
-      ## incement date ...
+      ## handle previous and next ...        
+      ## increment date ...
       $dt->add(days=>1);
       $nextdate = $dt->date();  
-      $prev_and_next = qq{<time:intervalMeets rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/$nextdate"/>};     
-      if ( $prevdate ) { $prev_and_next .= "\n" . qq{        <time:intervalMetBy rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/$prevdate"/>}} 
-      $prevdate = $date;  ## store current date as $prevdate
-
+      
       my $mm2digit=sprintf("%+.2d", $mm);
       #my $mm2digittake=~ s/^\+//;
       my $mm2digitplus = $mm2digit + 1;
@@ -111,14 +116,29 @@ DAY: while ( DateTime->compare( $dt, $dtmax ) <= 0 ) {
       my $mmtxt = DateRDFUtils::mm2txt($mm, "en");
 
       ## century and decade from year
-      my ($cc,$dec) = ($yyyy =~ m/(-?\d\d)(\d\d)/);
 
       ## 07 => 7
       (my $ddx = $dd ) =~ s/^0//;
       ## make an additional altLabel:
       my $ddx_altlabel = ""; 
       if ($dd =~ m/^0/) {
-         $ddx_altlabel = "\n" . qq{        <skos:altLabel xml:lang="en">$ddx $mmtxt $yyyy</skos:altLabel>}
+         $ddx_altlabel = "" . qq{<skos:altLabel xml:lang="en">$ddx $mmtxt $yyyy</skos:altLabel>}
+      }
+
+      my $ad_altlabel = ""; 
+      if ($bcsign eq "-") {
+      }
+      else{
+         $ad_altlabel = "" . qq{<skos:altLabel xml:lang="en">$bcsign$dd-$mm-$nosignyyyy</skos:altLabel>
+        <skos:altLabel xml:lang="en">$bcsign$dd/$mm/$nosignyyyy</skos:altLabel>
+        <skos:altLabel xml:lang="en">$bcsign$mm/$dd/$nosignyyyy</skos:altLabel>}
+      }
+
+      my $bc_definition = ""; 
+      if ($bcsign eq "-") {
+         $bc_definition = "\n" . qq{ BC}
+      }
+      else{
       }
 
       ## x1 => x1st ; 2 => 2nd etc.
@@ -132,24 +152,25 @@ DAY: while ( DateTime->compare( $dt, $dtmax ) <= 0 ) {
         <skos:inScheme rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/conceptScheme"/>
         <skos:prefLabel xml:lang="en">$date</skos:prefLabel>
         <rdfs:label rdf:datatype="xsd:date">$yyyy-$mm-$dd</rdfs:label>
-        <skos:altLabel xml:lang="en">$dd $mmtxt $yyyy</skos:altLabel>${ddx_altlabel}
-        <skos:altLabel xml:lang="en">$bcsign$dd-$mm-$nosignyyyy</skos:altLabel>
-        <skos:altLabel xml:lang="en">$bcsign$dd/$mm/$nosignyyyy</skos:altLabel>
-        <skos:altLabel xml:lang="en">$bcsign$mm/$dd/$nosignyyyy</skos:altLabel>
-        <skos:definition xml:lang="en">$ddth $mmtxt $yyyy in ISO8601 (the Gregorian and proleptic Gregorian calendar)</skos:definition>
+        <skos:altLabel xml:lang="en">$dd $mmtxt $yyyy</skos:altLabel>
+        ${ddx_altlabel}
+        ${ad_altlabel}
+        <skos:definition xml:lang="en">$date in ISO8601 (the Gregorian and proleptic Gregorian calendar). $ddth $mmtxt $yyyy${bc_definition}.</skos:definition>
         <skos:note>With regard to Date Entity modelling, documentation should be consulted at https://vocabs.acdh-dev.oeaw.ac.at/date/. It incldues information about URI syntax, ISO8601 conventions, and data enrichment among others.</skos:note>
         <time:hasTRS rdf:resource="http://www.opengis.net/def/uom/ISO-8601/0/Gregorian"/>
         <time:monthOfYear rdf:resource="http://www.w3.org/ns/time/gregorian/$mmtxt"/>
         <time:DayOfWeek rdf:resource="http://www.w3.org/ns/time/gregorian/$wdaytxt"/>
         <skos:closeMatch rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/julian_calendar/$jdate"/>
         <skos:broader rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/$yyyy-$mm"/>
-        $prev_and_next
+        <time:intervalMeets rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/$nextdate"/>
+        <time:intervalMetBy rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/$prevdate"/>    
       </rdf:Description>
 
 EOF
 
       print "$output";
 
+      $prevdate = $date;  ## store current date as $prevdate
    }
 
 }
