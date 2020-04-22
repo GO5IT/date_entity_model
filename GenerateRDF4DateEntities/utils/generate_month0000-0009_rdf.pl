@@ -12,8 +12,8 @@ use strict;
 our ($opt_h, $opt_l, $opt_f, $opt_t, $opt_d, $opt_H);
 getopts('hl:f:t:dH');
 
-my $DEFAULT_FROM = "1901-01-01";
-my $DEFAULT_TO   = "2000-12-31";
+my $DEFAULT_FROM = "0000-01-01";
+my $DEFAULT_TO   = "0009-12-31";
 
 sub usage {
   print <<"EOF";
@@ -77,34 +77,33 @@ YEAR: for (my $yyyy=$year; $yyyy <= $yearmax; $yyyy++)  {
      next MONTH if ($yyyy==$year && $mm < $month);
      last MONTH if ($yyyy==$yearmax && $mm > $monthmax);
 
+     my $mmplus = $mm + 1;
+     my $mmminus = $mm - 1;
+
      ## mm to text
      my $mmtxt = DateRDFUtils::mm2txt($mm, "en");
 
+
      ############################ fill TEMPLATE and print
     my $output =  << "EOF";
-      <rdf:Description rdf:about="https://vocabs.acdh.oeaw.ac.at/date/$yyyy-$mm">
+      <rdf:Description rdf:about="https://vocabs.acdh.oeaw.ac.at/date/000$yyyy-$mm">
         <rdf:type rdf:resource="https://vocabs.acdh.oeaw.ac.at/unit_of_time/month"/>
         <rdf:type rdf:resource="http://www.w3.org/2004/02/skos/core#Concept"/>
         <skos:inScheme rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/conceptScheme"/>
-        <skos:prefLabel xml:lang="en">$yyyy-$mm</skos:prefLabel>
-        <rdfs:label rdf:datatype="xsd:gYearMonth">$yyyy-$mm</rdfs:label>
-        <skos:altfLabel xml:lang="en">$mmtxt $yyyy</skos:altfLabel>
-        <skos:altfLabel xml:lang="en">$mm-$yyyy</skos:altfLabel>
-        <skos:altfLabel xml:lang="en">$mm/$yyyy</skos:altfLabel>
-        <skos:definition xml:lang="en">$mmtxt $yyyy in ISO8601 (the Gregorian and proleptic Gregorian calendar)</skos:definition>
+        <skos:prefLabel xml:lang="en">000$yyyy-$mm</skos:prefLabel>
+        <rdfs:label rdf:datatype="xsd:gYearMonth">000$yyyy-$mm</rdfs:label>
+        <skos:altLabel xml:lang="en">$mmtxt 000$yyyy</skos:altLabel>
+        <skos:altLabel xml:lang="en">$mm-000$yyyy</skos:altLabel>
+        <skos:altLabel xml:lang="en">$mm/000$yyyy</skos:altLabel>
+        <skos:definition xml:lang="en">000$yyyy-$mm in ISO8601 (the Gregorian and proleptic Gregorian calendar).</skos:definition>
+        <skos:note>With regard to Date Entity modelling, documentation should be consulted at https://vocabs.acdh-dev.oeaw.ac.at/date/. It incldues information about URI syntax, ISO8601 conventions, and data enrichment among others.</skos:note>
         <time:hasTRS rdf:resource="http://www.opengis.net/def/uom/ISO-8601/0/Gregorian"/>
         <time:monthOfYear rdf:resource="http://www.w3.org/ns/time/gregorian/$mmtxt"/>
-        <!--
-         <skos:exactMatch rdf:resource="https://www.wikidata.org/entity/Q16630779"/>
-        -->
-        <skos:broader rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/$yyyy"/>
+        <skos:exactMatch rdf:resource="http://dbpedia.org/resource/${mmtxt}_${yyyy}"/>
+        <skos:broader rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/000$yyyy"/>
+        <time:intervalMeets rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/000$yyyy-0$mmplus"/>
+        <time:intervalMetBy rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/000$yyyy-0$mmminus"/>
       </rdf:Description>
-
-      <!--
-      <rdf:Description rdf:about="https://www.wikidata.org/entity/Q16630779">
-        <skos:exactMatch rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/$yyyy-$mm"/>
-      </rdf:Description>
-      -->
 
 EOF
 

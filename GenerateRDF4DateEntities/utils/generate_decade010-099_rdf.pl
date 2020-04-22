@@ -12,8 +12,8 @@ use strict;
 our ($opt_h, $opt_l, $opt_f, $opt_t, $opt_d, $opt_H);
 getopts('hl:f:t:dH');
 
-my $DEFAULT_FROM = "1000-01-01";
-my $DEFAULT_TO   = "2100-01-01";
+my $DEFAULT_FROM = "0100-01-01";
+my $DEFAULT_TO   = "0999-12-31";
 
 sub usage {
   print <<"EOF";
@@ -72,33 +72,46 @@ print $DateRDFUtils::rdfstart unless ($opt_H);
 my $n = 0;
 YEAR: for (my $yyyy=$year; $yyyy <= $yearmax; $yyyy++)  {
      ### only use years which end in "0" - ignore all others
-     next YEAR unless  ( $yyyy =~ m/0$/ );  
+     next YEAR unless  ( $yyyy =~ m/0$/ );
 
      last YEAR if ( $opt_l && ($opt_l <= $n++) );
 
      my $decade = DateRDFUtils::year2decade($yyyy);
-     my $semium = DateRDFUtils::year2semium($yyyy);
+     my $decadeplus = $decade + 1;
+     my $decademinus = $decade - 1;
+
+     #my $semium = DateRDFUtils::year2semium($yyyy);
+     #my $semiumplus = $semium + 1;
+     #my $onedigit = DateRDFUtils::year2onedigit($yyyy);
+     #my $onedigitplus = $onedigit + 1;
+
+     ## century and decade from year
+     my ($cc,$dec) = ($yyyy =~ m/(-?\d{1,2})(\d\d)/);
+     my $ccplus = $cc + 1;
+     my $ccplusrev = $ccplus * -1;
+     my $ccminus = $cc - 1;
 
      ## debug mode: only print $yyy & $ccth
      if ($opt_d) {
         print "year=$yyyy  decade=$decade\n"; next YEAR;
-     } 
+     }
 
      my $output = <<"EOF";
-      <rdf:Description rdf:about="https://vocabs.acdh.oeaw.ac.at/date/$decade">
+      <rdf:Description rdf:about="https://vocabs.acdh.oeaw.ac.at/date/0$decade">
         <rdf:type rdf:resource="https://vocabs.acdh.oeaw.ac.at/unit_of_time/decade"/>
         <rdf:type rdf:resource="http://www.w3.org/2004/02/skos/core#Concept"/>
         <skos:inScheme rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/conceptScheme"/>
         <skos:prefLabel xml:lang="en">${decade}0s</skos:prefLabel>
         <rdfs:label xml:lang="en">${decade}0s</rdfs:label>
-        <skos:definition xml:lang="en">A decade from ${decade}0 to ${decade}9 in ISO8601 (the Gregorian and proleptic Gregorian calendar)</skos:definition>
+        <skos:altLabel xml:lang="en">0${decade}0/0${decade}9</skos:altLabel>
+        <skos:altLabel xml:lang="en">0${decade}0-0${decade}9</skos:altLabel>
+        <skos:altLabel xml:lang="en">AD ${decade}0 - AD ${decade}9</skos:altLabel>
+        <skos:definition xml:lang="en">A decade from 0${decade}0 to 0${decade}9 in ISO8601 (the Gregorian and proleptic Gregorian calendar). From AD ${decade}0 to AD ${decade}9.</skos:definition>
+        <skos:note>With regard to Date Entity modelling, documentation should be consulted at https://vocabs.acdh-dev.oeaw.ac.at/date/. It incldues information about URI syntax, ISO8601 conventions, and data enrichment among others.</skos:note>
         <time:hasTRS rdf:resource="http://www.opengis.net/def/uom/ISO-8601/0/Gregorian"/>
-        <skos:broader rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/$semium"/>
-        <skos:broader rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/${decade}0%2F${decade}9"/>
-        <!--
-        <time:intervalMeets rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/191"/>
-        <time:intervalMetBy rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/189"/>
-        -->
+        <skos:broader rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/0$ccplus"/>
+        <time:intervalMeets rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/0$decadeplus"/>
+        <time:intervalMetBy rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/0$decademinus"/>
       </rdf:Description>
 
 EOF

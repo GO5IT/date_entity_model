@@ -12,8 +12,8 @@ use strict;
 our ($opt_h, $opt_l, $opt_f, $opt_t, $opt_d, $opt_H);
 getopts('hl:f:t:dH');
 
-my $DEFAULT_FROM = "1901-01-01";
-my $DEFAULT_TO   = "2000-12-31";
+my $DEFAULT_FROM = "-0999-01-01";
+my $DEFAULT_TO   = "-0100-12-31";
 
 sub usage {
   print <<"EOF";
@@ -74,22 +74,41 @@ YEAR: for (my $yyyy=$year; $yyyy <= $yearmax; $yyyy++)  {
 
      last YEAR if ( $opt_l && ($opt_l <= $n++) );
 
+     my $yyyyplus = $yyyy + 1;
+     my $yyyyminus = $yyyy - 1;
+
+     # Reverse minus and plus to work on dates Before Christ
+     my $yyyyrev = $yyyy * -1;
+     my $yyyyrevplus = $yyyyrev + 1;
+     my $yyyyrevminus = $yyyyrev - 1;
+
      my $decade = DateRDFUtils::year2decade($yyyy);
      my $semium = DateRDFUtils::year2semium($yyyy);
+     my $onedigit = DateRDFUtils::year2onedigit($yyyy);
+
+     # Reverse minus and plus to work on dates Before Christ
+     my $decaderev = $decade * -1;
+     my $decaderevplus = $decaderev + 1;
+     my $decaderevminus = $decaderev - 1;
+
+     #my $onedigitrev = $onedigit * -1;
+     #my $onedigitplus = $onedigit + 1;
+     #my $onedigitrevplus = $onedigitrev + 1;
 
      my $output = <<"EOF";
-      <rdf:Description rdf:about="https://vocabs.acdh.oeaw.ac.at/date/$yyyy">
+      <rdf:Description rdf:about="https://vocabs.acdh.oeaw.ac.at/date/-0$yyyyrev">
         <rdf:type rdf:resource="https://vocabs.acdh.oeaw.ac.at/unit_of_time/year"/>
         <rdf:type rdf:resource="http://www.w3.org/2004/02/skos/core#Concept"/>
         <skos:inScheme rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/conceptScheme"/>
-        <skos:prefLabel xml:lang="en">$yyyy</skos:prefLabel>
-        <rdfs:label rdf:datatype="xsd:gYear">$yyyy</rdfs:label>
-        <skos:definition xml:lang="en">Year $yyyy in ISO8601 (the Gregorian and proleptic Gregorian calendar)</skos:definition>
+        <skos:prefLabel xml:lang="en">-0$yyyyrev</skos:prefLabel>
+        <rdfs:label rdf:datatype="xsd:gYear">-0$yyyyrev</rdfs:label>
+        <skos:altLabel xml:lang="en">$yyyyrevplus BC</skos:altLabel>
+        <skos:definition xml:lang="en">Year -0$yyyyrev in ISO8601 (the Gregorian and proleptic Gregorian calendar). Year $yyyyrevplus BC.</skos:definition>
+        <skos:note>With regard to Date Entity modelling, documentation should be consulted at https://vocabs.acdh-dev.oeaw.ac.at/date/. It incldues information about URI syntax, ISO8601 conventions, and data enrichment among others.</skos:note>
         <time:hasTRS rdf:resource="http://www.opengis.net/def/uom/ISO-8601/0/Gregorian"/>
-        <skos:exactMatch rdf:resource="http://dbpedia.org/resource/$yyyy"/>
-        <skos:exactMatch rdf:resource="http://semium.org/time/$yyyy"/>
-        <skos:broader rdf:resource="http://semium.org/time/${semium}xx"/>
-        <skos:broader rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/$decade"/>
+        <skos:broader rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/-0${decaderev}"/>
+        <time:intervalMeets rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/-0$yyyyrevminus"/>
+        <time:intervalMetBy rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/-0$yyyyrevplus"/>
       </rdf:Description>
 
 EOF

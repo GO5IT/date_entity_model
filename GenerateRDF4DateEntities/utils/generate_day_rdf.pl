@@ -9,8 +9,8 @@ use DateTime::Calendar::Julian qw(:all);
 use DateRDFUtils;
 use Getopt::Std;
 
-my $DEFAULT_FROM = "-101-01-01";
-my $DEFAULT_TO   = "101-01-01";
+my $DEFAULT_FROM = "2000-01-01";
+my $DEFAULT_TO   = "3000-01-01";
 
 our ($opt_h, $opt_l, $opt_t, $opt_H, $opt_f, $opt_d);
 getopts('hl:Hdf:t:');
@@ -77,7 +77,6 @@ $prevdate = $dtprev->date();
 $dt->add(days => 1);
 
 
-
 DAY: while ( DateTime->compare( $dt, $dtmax ) <= 0 ) {
    ## limit with -l ?
    last DAY if ( $opt_l && ($opt_l <= $n++) );
@@ -90,12 +89,28 @@ DAY: while ( DateTime->compare( $dt, $dtmax ) <= 0 ) {
       my $jdate   = $dtjul->date();
       ## derive all others automatically
       my ($yyyy, $mm, $dd) = ($date =~ m/^(-?\d\d\d\d)-(\d\d)-(\d\d)$/);
+
       ## separate $yyyy and its possible "-" 
       my $bcsign = "";
       my $nosignyyyy = $yyyy; 
-      if ( $nosignyyyy =~ s/^-// ) {
+      if ( $nosignyyyy =~ s/^-// or $nosignyyyy == "0000") {
          $bcsign = "-"
       }
+
+      ### remove leading "0" in years
+      ## 0001 => 1 , -0001 => -1
+      (my $nosignyyyyx = $nosignyyyy) =~ s/^0{1,3}//;
+      my $yyyyx;
+      if ($bcsign) {
+         $yyyyx = $bcsign . $nosignyyyyx;
+      } else {
+         $yyyyx = $nosignyyyyx;
+      }
+
+      ## for debugging / testing
+      ## print "$yyyy - $yyyyx - $nosignyyyyx\n"; $dt->add(days => 1); next DAY;
+      my $nosignyyyyplus = $nosignyyyy + 1;
+      my $nosignyyyyminus = $nosignyyyy - 1;
 
       ## handle previous and next ...        
       ## increment date ...
@@ -107,42 +122,62 @@ DAY: while ( DateTime->compare( $dt, $dtmax ) <= 0 ) {
       my $mm2digitplus = $mm2digit + 1;
       my $mm2digitminus = $mm2digit - 1;
 
+      ## mm to text
+      my $mmtxt = DateRDFUtils::mm2txt($mm, "en");
+
       my $dd2digit=sprintf("%+.2d", $dd);
       #my $dd2digittake=~ s/^\+//;
       my $dd2digitplus = $dd2digit + 1;
       my $dd2digitminus = $dd2digit - 1;
 
-      ## mm to text
-      my $mmtxt = DateRDFUtils::mm2txt($mm, "en");
-
       ## century and decade from year
 
+      ### remove leading "0" in days
       ## 07 => 7
       (my $ddx = $dd ) =~ s/^0//;
-      ## make an additional altLabel:
-      my $ddx_altlabel = ""; 
-      if ($dd =~ m/^0/) {
-         $ddx_altlabel = "" . qq{<skos:altLabel xml:lang="en">$ddx $mmtxt $yyyy</skos:altLabel>}
+      my $ddx_altlabel = "\n\t\t\t\t";       
+      ## x1 => x1st ; 2 => 2nd etc.
+      my $ddth = DateRDFUtils::numeral2ordinal($ddx);
+
+      ## make an additional altLabel and skos:definition, depending on BC and AD:
+      if ($bcsign eq "-"){
+        if ($dd =~ m/^0/) {
+          $ddx_altlabel = "" . qq{<skos:altLabel xml:lang="en">$ddx $mmtxt $nosignyyyyplus BC</skos:altLabel>
+      <skos:altLabel xml:lang="en">$ddth $mmtxt $nosignyyyyplus BC</skos:altLabel>}
+        }
+        else{
+          $ddx_altlabel = "" . qq{<skos:altLabel xml:lang="en">$dd $mmtxt $nosignyyyyplus BC</skos:altLabel>
+      <skos:altLabel xml:lang="en">$ddth $mmtxt $nosignyyyyplus BC</skos:altLabel>}   
+        }
+
+      }
+      else { 
+        if ($dd =~ m/^0/) {
+          $ddx_altlabel = "" . qq{<skos:altLabel xml:lang="en">$ddx $mmtxt $nosignyyyyx</skos:altLabel>
+      	<skos:altLabel xml:lang="en">$ddth $mmtxt $nosignyyyyx</skos:altLabel>}
+
+        }
+        else{
+          $ddx_altlabel = "" . qq{<skos:altLabel xml:lang="en">$dd $mmtxt $nosignyyyyx</skos:altLabel>
+      	<skos:altLabel xml:lang="en">$ddth $mmtxt $nosignyyyyx</skos:altLabel>}  
+        }
       }
 
-      my $ad_altlabel = ""; 
+      my $ad_altlabel = "\n\t\t\t\t"; 
       if ($bcsign eq "-") {
       }
-      else{
+      else {
          $ad_altlabel = "" . qq{<skos:altLabel xml:lang="en">$bcsign$dd-$mm-$nosignyyyy</skos:altLabel>
         <skos:altLabel xml:lang="en">$bcsign$dd/$mm/$nosignyyyy</skos:altLabel>
         <skos:altLabel xml:lang="en">$bcsign$mm/$dd/$nosignyyyy</skos:altLabel>}
       }
-
-      my $bc_definition = ""; 
+      my $definition = "\n\t\t\t\t"; 
       if ($bcsign eq "-") {
-         $bc_definition = "\n" . qq{ BC}
+        $definition = "" . qq{<skos:definition xml:lang="en">$date in ISO8601 (the Gregorian and proleptic Gregorian calendar). $ddth $mmtxt ${nosignyyyyplus} BC.</skos:definition>}
       }
-      else{
+      else {
+        $definition = "" . qq{<skos:definition xml:lang="en">$date in ISO8601 (the Gregorian and proleptic Gregorian calendar). $ddth $mmtxt ${nosignyyyyx}.</skos:definition>}
       }
-
-      ## x1 => x1st ; 2 => 2nd etc.
-      my $ddth = DateRDFUtils::numeral2ordinal($ddx);
 
        ############################ fill TEMPLATE and print
       my $output =  << "EOF";
@@ -152,11 +187,10 @@ DAY: while ( DateTime->compare( $dt, $dtmax ) <= 0 ) {
         <skos:inScheme rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/conceptScheme"/>
         <skos:prefLabel xml:lang="en">$date</skos:prefLabel>
         <rdfs:label rdf:datatype="xsd:date">$yyyy-$mm-$dd</rdfs:label>
-        <skos:altLabel xml:lang="en">$dd $mmtxt $yyyy</skos:altLabel>
         ${ddx_altlabel}
         ${ad_altlabel}
-        <skos:definition xml:lang="en">$date in ISO8601 (the Gregorian and proleptic Gregorian calendar). $ddth $mmtxt $yyyy${bc_definition}.</skos:definition>
-        <skos:note>With regard to Date Entity modelling, documentation should be consulted at https://vocabs.acdh-dev.oeaw.ac.at/date/. It incldues information about URI syntax, ISO8601 conventions, and data enrichment among others.</skos:note>
+        ${definition}
+        <skos:note>With regard to Date Entity modelling, documentation should be consulted at https://vocabs.acdh-dev.oeaw.ac.at/date/. It includes information about URI syntax, ISO8601 conventions, and data enrichment among others.</skos:note>
         <time:hasTRS rdf:resource="http://www.opengis.net/def/uom/ISO-8601/0/Gregorian"/>
         <time:monthOfYear rdf:resource="http://www.w3.org/ns/time/gregorian/$mmtxt"/>
         <time:DayOfWeek rdf:resource="http://www.w3.org/ns/time/gregorian/$wdaytxt"/>
@@ -165,10 +199,12 @@ DAY: while ( DateTime->compare( $dt, $dtmax ) <= 0 ) {
         <time:intervalMeets rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/$nextdate"/>
         <time:intervalMetBy rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/$prevdate"/>    
       </rdf:Description>
-
 EOF
 
-      print "$output";
+      ## beautify $output -> remove empty lines!
+      $output =~ s/\n\s+\n/\n/g; 
+
+      print "$output\n";
 
       $prevdate = $date;  ## store current date as $prevdate
    }
