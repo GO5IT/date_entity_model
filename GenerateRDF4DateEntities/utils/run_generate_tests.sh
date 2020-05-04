@@ -11,6 +11,6 @@ for type in day month year decade century millenium; do
      echo "$type ..."
      $script -l $LIMIT > sample_${type}.rdf
   else
-    echo "not yet implemented: $type"
+	  echo -e "not yet implemented: $type ? (could not find $script or it is not executeable )"
   fi
 done

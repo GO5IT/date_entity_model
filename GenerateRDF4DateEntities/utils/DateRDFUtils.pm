@@ -119,8 +119,6 @@ sub numeral2ordinal {
 
 ## map year to $decade
 ## simply remove last digit
-## is this correct?
-## how to distinguish between 20th century and 20th decade?
 sub year2decade{
   my $yyyy = shift;
   $yyyy =~ s/^(.+)\d$/$1/;

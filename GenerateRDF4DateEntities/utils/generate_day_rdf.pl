@@ -9,8 +9,8 @@ use DateTime::Calendar::Julian qw(:all);
 use DateRDFUtils;
 use Getopt::Std;
 
-my $DEFAULT_FROM = "2000-01-01";
-my $DEFAULT_TO   = "3000-01-01";
+my $DEFAULT_FROM = "-3000-01-01";
+my $DEFAULT_TO   = "-2000-12-31";
 
 our ($opt_h, $opt_l, $opt_t, $opt_H, $opt_f, $opt_d);
 getopts('hl:Hdf:t:');
@@ -171,7 +171,7 @@ DAY: while ( DateTime->compare( $dt, $dtmax ) <= 0 ) {
         <skos:altLabel xml:lang="en">$bcsign$dd/$mm/$nosignyyyy</skos:altLabel>
         <skos:altLabel xml:lang="en">$bcsign$mm/$dd/$nosignyyyy</skos:altLabel>}
       }
-      my $definition = "\n\t\t\t\t"; 
+      my $definition = "\n\t\t\t\t";
       if ($bcsign eq "-") {
         $definition = "" . qq{<skos:definition xml:lang="en">$date in ISO8601 (the Gregorian and proleptic Gregorian calendar). $ddth $mmtxt ${nosignyyyyplus} BC.</skos:definition>}
       }
@@ -179,11 +179,19 @@ DAY: while ( DateTime->compare( $dt, $dtmax ) <= 0 ) {
         $definition = "" . qq{<skos:definition xml:lang="en">$date in ISO8601 (the Gregorian and proleptic Gregorian calendar). $ddth $mmtxt ${nosignyyyyx}.</skos:definition>}
       }
 
+      # If time permits, add $skosnote further down and uncomment below for special skosnote for 1582-10-15 could be added:
+      #if ($yyyy == "1582-10-15") {
+      #  $skosnote = "" . qq{This is the first starting day of the Gregorian calendar in history, which was introduced in Spain, Portugal, the Polish–Lithuanian Commonwealth and most of present-day Italy. Thursday 4 October 1582 in the Julian calendar was followed by Friday 15 October 1582. Other countries continued using the Julian calendar, switching calendars in later years, and the complete conversion of the Gregorian calendar was not entirely done until 1929. Date Entity uses ISO8601 (the Gregorian and proleptic Gregorian calendar) by default. Thus, the entity goes backward from 1582-10-15. However, it is possible to add the Gregorian calendar, the Julian calendar, and the pre-Julain Roman calendar alongside the default ISO8601 system in the future. }
+      #}
+      #else{
+      #}
+
        ############################ fill TEMPLATE and print
       my $output =  << "EOF";
       <rdf:Description rdf:about="https://vocabs.acdh.oeaw.ac.at/date/$date">
         <rdf:type rdf:resource="https://vocabs.acdh.oeaw.ac.at/unit_of_time/day"/>
         <rdf:type rdf:resource="http://www.w3.org/2004/02/skos/core#Concept"/>
+        <rdf:type rdf:resource="https://vocabs.acdh.oeaw.ac.at/unit_of_time/${mmtxt}_${ddx}"/>
         <skos:inScheme rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/conceptScheme"/>
         <skos:prefLabel xml:lang="en">$date</skos:prefLabel>
         <rdfs:label rdf:datatype="xsd:date">$yyyy-$mm-$dd</rdfs:label>
@@ -193,7 +201,9 @@ DAY: while ( DateTime->compare( $dt, $dtmax ) <= 0 ) {
         <skos:note>With regard to Date Entity modelling, documentation should be consulted at https://vocabs.acdh-dev.oeaw.ac.at/date/. It includes information about URI syntax, ISO8601 conventions, and data enrichment among others.</skos:note>
         <time:hasTRS rdf:resource="http://www.opengis.net/def/uom/ISO-8601/0/Gregorian"/>
         <time:monthOfYear rdf:resource="http://www.w3.org/ns/time/gregorian/$mmtxt"/>
+        <time:monthOfYear rdf:resource="https://vocabs.acdh.oeaw.ac.at/unit_of_time/$mmtxt"/>
         <time:DayOfWeek rdf:resource="http://www.w3.org/ns/time/gregorian/$wdaytxt"/>
+        <time:DayOfWeek rdf:resource="https://vocabs.acdh.oeaw.ac.at/unit_of_time/$wdaytxt"/>
         <skos:closeMatch rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/julian_calendar/$jdate"/>
         <skos:broader rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/$yyyy-$mm"/>
         <time:intervalMeets rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/$nextdate"/>
