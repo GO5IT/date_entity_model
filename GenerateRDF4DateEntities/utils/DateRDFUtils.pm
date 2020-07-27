@@ -23,9 +23,9 @@ our $namespacehash = {
 };
 
 ## automatically create namespace objects trine-namespaces ... 
-my $nsobject={};
+my $nsobjects={};
 foreach my $prefix (keys %$DateRDFUtils::namespacehash) {
-   $nsobject->{$prefix} = RDF::Trine::Namespace->new($DateRDFUtils::namespacehash->{$prefix});
+   $nsobjects->{$prefix} = RDF::Trine::Namespace->new($DateRDFUtils::namespacehash->{$prefix});
 }  
  
 

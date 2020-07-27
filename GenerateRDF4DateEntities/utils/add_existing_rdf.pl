@@ -4,6 +4,7 @@
 
 use strict;
 use warnings;
+use Data::Dumper;
 use DateRDFUtils;
 use RDF::Trine;
 use RDF::Trine::Serializer;
@@ -14,13 +15,29 @@ my $base_uri="http:://foo"; ## ?
 
 my $DEFAULTURL='http://dbpedia.org/resource/563_BC';
 
-our ($opt_h, $opt_d, $opt_i,$opt_o,$opt_l,$opt_u);
-getopts('hdi:o:l:u:');
+# Create a namespace object for the foaf vocabulary
+my $foaf = RDF::Trine::Namespace->new( 'http://xmlns.com/foaf/0.1/' );
+print Dumper $foaf;
+
+print Dumper $DateRDFUtils::namespacehash->{'foaf'};
+
+print "==nsobjects==\n";
+print Dumper %$DateRDFUtils::nsobjects;
+
+# Create a node object for skos-exactMatch property
+# my $pred = $foaf->name;
+my $skosNS = $DateRDFUtils::nsobjects->{'skos'};
+print Dumper $skosNS; exit;
+
+my $skosexact = $DateRDFUtils::namespacehash->{'skos'}->exactMatch;
+
+our ($opt_h, $opt_d, $opt_i,$opt_o,$opt_l,$opt_u,$opt_t);
+getopts('hdi:o:l:u:t');
 
 
 sub usage {
   print <<"EOF";
-USAGE $0 (-h) (-d) (-i <INPUTFILE>) (-o <OUTPUTFILE>) (-l <LOGFILE>) 
+USAGE $0 (-h) (-d) (-i <INPUTFILE>) (-o <OUTPUTFILE>) (-l <LOGFILE>) (-t)
 
 -i <INPUTFILE>
              If -i is not supplied, then
@@ -37,6 +54,8 @@ USAGE $0 (-h) (-d) (-i <INPUTFILE>) (-o <OUTPUTFILE>) (-l <LOGFILE>)
 
 -l <LOGFILE> Name of logfile.
              DEFAULT: $DEFAULTLOG
+
+-t           TEST-MODE
 
 -d           Debug mode: print list of dates - and NO RDF
 
@@ -69,9 +88,8 @@ if ($opt_l) {
   open($fhlog, '>', $logfile);
 }
 
-my $testUA = 0;
 
-if ($testUA) {
+if ($opt_t) {
 	my $ua = LWP::UserAgent->new;
 	my $response = $ua->get($url,
 	  'User-Agent' => 'Mozilla/4.76 [en] (Win98; U)',
@@ -81,10 +99,12 @@ if ($testUA) {
 	);
 	if ($response->is_success) {
 	    my $text = $response->content;  # or whatever
-	    print "$text\n";
+          print "erfolg!\n";
 	}  else  {
-	    die $response->status_line;
+	    print "es gab probleme: " . $response->status_line . "\n";
 	}
+
+  exit;
 }
 
 my $store      = RDF::Trine::Store::Memory->new();
@@ -93,10 +113,17 @@ my $serializer = RDF::Trine::Serializer->new('rdfxml', namespaces => $DateRDFUti
 my $parser     = RDF::Trine::Parser->new( 'rdfxml' );
 
 # parse some web data into the model, and print the count of resulting RDF statements
+my $response;
 if ($opt_i) {
-    $parser->parse_file_into_model( $base_uri, $fhi, $model );
+    $response = $parser->parse_file_into_model( $base_uri, $fhi, $model );
 } else {
-    $parser->parse_url_into_model( $url, $model );
+    $response = $parser->parse_url_into_model( $url, $model );
+}
+
+if ($opt_d && !$fhi) {
+  print "== response ==\n";
+  print Dumper $response;
+  exit;
 }
 
 #print $model->size . " RDF statements parsed\n";
@@ -110,6 +137,22 @@ if ($fho) {
 if ($fhi) { close($fhi); }
 if ($fho) { close($fho); }
 if ($fhlog) { close($fhlog); }
+
+## get all subjects
+my @subjects = $model->subjects(undef, undef);
+print "Anzahl subjects: " . scalar(@subjects) . "\n";
+
+foreach my $subject (@subjects) {
+  my $iter = $model->get_statements($subject, $skosexact, undef);
+  print "==== subject: $subject ====";
+  while (my $st = $iter->next) {
+    my $sub = $st->subject;
+    my $pred = $st->predicate;
+    my $obj  = $st->object;
+    print "\t$pred\t$obj\n";
+  }
+}
+
 
 
 exit;
@@ -130,15 +173,13 @@ exit;
 #The valid key-values used in %options are specific to a particular serializer implementation. For serializers that support namespace declarations (to allow more concise serialization), use namespaces => \%namespaces in %options, where the keys of %namespaces are namespace names and the values are (partial) URIs. For serializers that support base URI declarations, use base_uri => $base_uri .
 
 
-# Create a node object for the FOAF name property
-# my $pred = $foaf->name;
-my $pred = $DateRDFUtils::namespacehash->{'foaf'}->name;
+
 
 # alternatively:
 # my $pred = RDF::Trine::Node::Resource->new('http://xmlns.com/foaf/0.1/name');
  
 # Create an iterator for all the statements in the model with foaf:name as the predicate
-my $iter = $model->get_statements(undef, $pred, undef);
+my $iter = $model->get_statements(undef, $skosexact, undef);
  
 # Now print the results
 print "Names of things:\n";
