@@ -113,8 +113,7 @@ if ($opt_l) {
   open($fhlog, '>', $logfile);
 }
 
-
-### create my own $ua used for pre-testing urls
+### create my own $ua used for pre-testing urls -> probably NOT required!!!
 my $ua = LWP::UserAgent->new;
         $ua->default_header('Accept-Charset' => 'utf-8');
         $ua->default_header('Accept-Language' => "en");
@@ -126,7 +125,7 @@ my $model      = RDF::Trine::Model->new($store);
 my $serializer = RDF::Trine::Serializer->new('rdfxml', namespaces => $DateRDFUtils::namespacehash);
 my $parser     = RDF::Trine::Parser->new( 'rdfxml' );
 
-## test
+## testing some settings
 if ($opt_t) {	
 	print "parser->media_type = " . $parser->media_type . "\n";  
 	print "parser->media_types = " . $parser->media_types . "\n"; 
@@ -135,18 +134,6 @@ if ($opt_t) {
         print $parser->parser_by_media_type ( $MEDIATYPE ); 
         exit;
 }
-### test
-#if ($opt_t) {
-#	my $response = $ua->get($url);
-#	if ($response->is_success) {
-#	    my $text = $response->content;  # or whatever
-#            print "erfolg!\n";
-#            print "$text\n";
-#	}  else  {
-#	    print "es gab probleme: " . $response->status_line . "\n";
-#	}
-#  exit;
-#}
 
 # parse some web data into the model, and print the count of resulting RDF statements
 my $response;
@@ -186,8 +173,7 @@ YEAR: foreach my $subject (@subjects) {
   SAMEAS: while (my $st = $iter->next) {
     my $sub  = $st->subject;
     my $pred = $st->predicate;
-    my $obj  = $st->object;
-   
+    my $obj  = $st->object;  
     ### only consider dbpedia and wikidata
     if ($obj->as_string =~ m{http://dbpedia.org|https?://www.wikidata.org}) {
        print "\tselected:\t$pred\t$obj\n";
@@ -235,7 +221,7 @@ YEAR: foreach my $subject (@subjects) {
 print "Number of RDF - statements in model AFTER: " . $model->size . "\n";
 } # YEAR
 
-##### serialize the model 
+##### serialize the model to either outfile or to standard-output
 my $outstring =  $serializer->serialize_model_to_string ( $model );
 if ($fho) {
 	print $fho $outstring;
@@ -243,12 +229,12 @@ if ($fho) {
 	print $outstring;
 }
 
+## close all open files
 if ($fhi)   { close($fhi); }
 if ($fho)   { close($fho); }
 if ($fhlog) { close($fhlog); }
 
-
-exit;
+## ======================= END MAIN ==============================
 
 ## Create namespace objects
 ###   ### now in: $DateRDFUtils::namespacehash;  
@@ -268,20 +254,6 @@ exit;
 # alternatively:
 # my $pred = RDF::Trine::Node::Resource->new('http://xmlns.com/foaf/0.1/name');
  
-# Create an iterator for all the statements in the model with foaf:name as the predicate
-my $iter = $model->get_statements(undef, $skos_exact, undef);
- 
-# Now print the results
-print "Names of things:\n";
-while (my $st = $iter->next) {
-  my $s = $st->subject;
-  my $name = $st->object;
-   
-  # $s and $name have string overloading, so will print correctly
-  print "The name of $s is $name\n";
-} 
-
-
 ######################## END MAIN #########################
 #parse_url_into_model ( $url, $model [, %args] )
 #Retrieves the content from $url and attempts to parse the resulting RDF into $model using a parser chosen by the associated content media type.

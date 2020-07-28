@@ -31,8 +31,6 @@ foreach my $prefix (keys %$DateRDFUtils::namespacehash) {
    $nsobjects->{$prefix} = RDF::Trine::Namespace->new($DateRDFUtils::namespacehash->{$prefix});
 }  
 
-
- 
 ###########################################################
 ###  Re-usable bits and pieces for Go's Date-to-RDF project
 
