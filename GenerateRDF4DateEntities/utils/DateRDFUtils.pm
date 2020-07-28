@@ -7,28 +7,33 @@ use utf8;
 
 package DateRDFUtils;
 
+##################################################
+## Common variables for RDF::Trine 
+
 ### used for RDF::Trine::Serializer
 our $namespacehash = {
-      dc=>'http://purl.org/dc/elements/',
-	dcterms=>'http://purl.org/dc/terms/',
-	rdf=>'http://www.w3.org/1999/02/22-rdf-syntax-ns#',
-	rdfs=>'http://www.w3.org/2000/01/rdf-schema#',
-	skos=>'http://www.w3.org/2004/02/skos/core#',
-	time=>'http://www.w3.org/2006/time#',
-	xsd=>'http://www.w3.org/2001/XMLSchema#',
+      	dc => 'http://purl.org/dc/elements/',
+	dcterms => 'http://purl.org/dc/terms/',
+	rdf => 'http://www.w3.org/1999/02/22-rdf-syntax-ns#',
+	rdfs => 'http://www.w3.org/2000/01/rdf-schema#',
+	skos => 'http://www.w3.org/2004/02/skos/core#',
+	time => 'http://www.w3.org/2006/time#',
+	xsd => 'http://www.w3.org/2001/XMLSchema#',
 	foaf => 'http://xmlns.com/foaf/0.1/' ,
-      owl => 'http://www.w3.org/2002/07/owl#',
-      dbo => 'http://dbpedia.org/ontology/',
+      	owl => 'http://www.w3.org/2002/07/owl#',
+      	dbo => 'http://dbpedia.org/ontology/',
 	prov => 'http://www.w3.org/ns/prov#',
 };
 
 ## automatically create namespace objects trine-namespaces ... 
-my $nsobjects={};
+our $nsobjects={};
 foreach my $prefix (keys %$DateRDFUtils::namespacehash) {
    $nsobjects->{$prefix} = RDF::Trine::Namespace->new($DateRDFUtils::namespacehash->{$prefix});
 }  
- 
 
+
+ 
+###########################################################
 ###  Re-usable bits and pieces for Go's Date-to-RDF project
 
 ## default language for Month-Names etc.
