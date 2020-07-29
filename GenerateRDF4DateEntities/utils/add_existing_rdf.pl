@@ -13,8 +13,9 @@ use Getopt::Std;
 my $DEFAULTLOG="add_existing.log";
 my $base_uri="http:://foo"; ## ?  
 
-my $DEFAULTURL='http://dbpedia.org/resource/563_BC';
-
+# my $DEFAULTURL='http://dbpedia.org/resource/563_BC';
+## a url with https: I had major problems with this one !!! 
+my $DEFAULTURL='https://www.wikidata.org/wiki/Q2485';
 my $MEDIATYPE='application/rdf+xml';
 
 ### Create a namespace object for the foaf vocabulary
@@ -38,23 +39,20 @@ my $MEDIATYPE='application/rdf+xml';
 
 
 ### create useful predicate-names
-my $rdfs_label = $DateRDFUtils::nsobjects->{'rdfs'}->label;
-my $skos_exact = $DateRDFUtils::nsobjects->{'skos'}->exactMatch;
-my $owl_sameas = $DateRDFUtils::nsobjects->{'owl'}->sameAs;
-my $dbo_abstract = $DateRDFUtils::nsobjects->{'dbo'}->abstract;
+my $rdfs_label        = $DateRDFUtils::nsobjects->{'rdfs'}->label;
+my $skos_exactmatch   = $DateRDFUtils::nsobjects->{'skos'}->exactMatch;
+my $owl_sameas        = $DateRDFUtils::nsobjects->{'owl'}->sameAs;
+my $dbo_abstract      = $DateRDFUtils::nsobjects->{'dbo'}->abstract;
 my $foaf_primarytopic = $DateRDFUtils::nsobjects->{'foaf'}->primaryTopic;
 
-
-my @checkinDBPedia  = (  $owl_sameas, $rdfs_label, $foaf_primarytopic, $dbo_abstract  );
-my @checkinWikidata = (  $rdfs_label, $foaf_primarytopic, $dbo_abstract  );
-
-print "checkinDBPedia:\n";
-print Dumper @checkinDBPedia;  
+my $checkinDBPedia  = [  $owl_sameas, $rdfs_label, $foaf_primarytopic, $dbo_abstract  ];
+my $checkinWikidata = [  $rdfs_label, $foaf_primarytopic, $dbo_abstract  ];
 
 
 our ($opt_h, $opt_d, $opt_i,$opt_o,$opt_l,$opt_u,$opt_t,$opt_p);
 getopts('hdi:o:l:u:tp');
 
+$opt_p = 0 unless $opt_p;
 
 sub usage {
   print <<"EOF";
@@ -98,6 +96,13 @@ if ($opt_h) {
 my $logfile = $opt_l ? $opt_l : $DEFAULTLOG;
 my $url = $opt_u ? $opt_u : $DEFAULTURL;
 
+if ($opt_d) {
+  print "checkinDBPedia:\n";
+  print Dumper @$checkinDBPedia;  
+  print "checkinWikidata:\n";
+  print Dumper @$checkinWikidata;  
+  print "\n\n";
+}
 
 my $fhi;
 my $fho; 
@@ -113,19 +118,13 @@ if ($opt_l) {
   open($fhlog, '>', $logfile);
 }
 
-### create my own $ua used for pre-testing urls -> probably NOT required!!!
-my $ua = LWP::UserAgent->new;
-        $ua->default_header('Accept-Charset' => 'utf-8');
-        $ua->default_header('Accept-Language' => "en");
-        $ua->default_header('Accept' => $MEDIATYPE);
-
 ### initialize 
 my $store      = RDF::Trine::Store::Memory->new();
 my $model      = RDF::Trine::Model->new($store);
-my $serializer = RDF::Trine::Serializer->new('rdfxml', namespaces => $DateRDFUtils::namespacehash);
 my $parser     = RDF::Trine::Parser->new( 'rdfxml' );
+my $serializer = RDF::Trine::Serializer->new('rdfxml', namespaces => $DateRDFUtils::namespacehash);
 
-## testing some settings
+## test mode: test some settings and exit
 if ($opt_t) {	
 	print "parser->media_type = " . $parser->media_type . "\n";  
 	print "parser->media_types = " . $parser->media_types . "\n"; 
@@ -135,91 +134,40 @@ if ($opt_t) {
         exit;
 }
 
-# parse some web data into the model, and print the count of resulting RDF statements
+# load the -i <infile> into a model, or load from web-source using -u <url>
 my $response;
 if ($opt_i) {
     $response = $parser->parse_file_into_model( $base_uri, $fhi, $model );
 } else {
-#    $response = $parser->parse_url_into_model( $url, $model, ua => $ua, content_cb => \&content_callback, useragent => $ua );
     my $error = "";
     if ($opt_p) {
-       $error = pre_test_url_for_error($url, $ua);
+       $error = DateRDFUtils::pre_test_url_for_error($url);
     }
     if ($error) {
        ### TODO: write info to logfile
-       print "LEIDER FEHLGESCHLAGEN: $url\t$error\n";
+       die "INITIAL HTTP FAILED for: $url\t$error\n";
     } else {
-       $response = $parser->parse_url_into_model( $url, content_cb => \&content_callback );
+       $response = $parser->parse_url_into_model( $url, $model, content_cb => \&DateRDFUtils::content_callback );
     }
 }
 
-## debug
+## for debug
 if ($opt_d && !$fhi) {
   print "== response ==\n";
   print Dumper $response;
   exit;
 }
 
-print "Number of RDF - statements in model BEFORE: " . $model->size . "\n";
-
-## get all subjects in model
-my @subjects = $model->subjects(undef, undef);
-print "Number of subjects: " . scalar(@subjects) . "\n";
-
-## loop over subjects
-YEAR: foreach my $subject (@subjects) {
-  my $iter = $model->get_statements($subject, $skos_exact, undef);
-  print "==== subject: $subject ====\n";
-  SAMEAS: while (my $st = $iter->next) {
-    my $sub  = $st->subject;
-    my $pred = $st->predicate;
-    my $obj  = $st->object;  
-    ### only consider dbpedia and wikidata
-    if ($obj->as_string =~ m{http://dbpedia.org|https?://www.wikidata.org}) {
-       print "\tselected:\t$pred\t$obj\n";
-    } else {
-       print "\tfiltered:\t$pred\t$obj\n";
-       next SAMEAS; 
-    }
-
-    ### fetch the linked stuff in separate temporal model
-#    my $localstore     = RDF::Trine::Store::Memory->new();
-    my $localmodel      = RDF::Trine::Model->new($store);
-    my $lresponse;
-    my $error = "";
-    if ($opt_p) {
-       $error = pre_test_url_for_error($obj->uri_value, $ua);
-    }
-    if ($error) {
-       ### TODO: write info to logfile
-       print "LEIDER FEHLGESCHLAGEN:\t" . $obj->uri_value . "\t$error\n";
-    } else {
-       $lresponse = $parser->parse_url_into_model( $obj->uri_value, $localmodel, content_cb => \&content_callback );
-    }
-    ### now extract ALL relevant triples for localmodel 
-    print "\nNumber of RDF - statements in LOCAL model: " . $localmodel->size . "\n";
-    my $localiter = $localmodel->get_statements(undef, undef, undef);
-    TRIPLE: while (my $lst = $localiter->next) {
-    	my $lsub  = $lst->subject;
-    	my $lpred = $lst->predicate;
-    	my $lobj  = $lst->object;
- 
-     if ($opt_d)  {
-     	print "lpred: $lpred\n";
-     	print Dumper $lpred;
-     	print "---\n";
-     }
-
-     ### filter! Only use those preds enumerated in @checkinDBPedia
-     if ( grep { $lpred->equal($_) } @checkinDBPedia ) {
-           print "HIT:\t\t$lpred\t$lobj\n"; # if ($opt_d);
-	## add triple to store!
-        $model->add_statement( RDF::Trine::Statement->new($subject, $lpred, $lobj) );
-     }
-  } # TRIPLE
-} # SAMEAS
-print "Number of RDF - statements in model AFTER: " . $model->size . "\n";
-} # YEAR
+## almost the whole logic is packed into THIS function
+## add_triples_from_external_sameAs ( $model, $sameas, $filter, $predstoadd, $pretestURL, $logtag, $opt_d, $log ) 
+## call it twice: 
+## The first run will search for skos:exactMatch on dbpedia and fetch the appropriate triples from there
+## these also include owl:sameAs for wikidata 
+my $log = {}; 
+## 1st run: dbpedia
+DateRDFUtils::add_triples_from_external_sameAs ( $model, $parser, $skos_exactmatch, 'http://dbpedia.org' , $checkinDBPedia, $opt_p, "DBPedia", $opt_d, $log ); 
+## 2nd run: wikidata
+# DateRDFUtils::add_triples_from_external_sameAs ( $model, $parser, $owl_sameas, '//www.wikidata.org' , $checkinWikidata, $opt_p, "DBPedia", $opt_d, $log ); 
 
 ##### serialize the model to either outfile or to standard-output
 my $outstring =  $serializer->serialize_model_to_string ( $model );
@@ -255,53 +203,5 @@ if ($fhlog) { close($fhlog); }
 # my $pred = RDF::Trine::Node::Resource->new('http://xmlns.com/foaf/0.1/name');
  
 ######################## END MAIN #########################
-#parse_url_into_model ( $url, $model [, %args] )
-#Retrieves the content from $url and attempts to parse the resulting RDF into $model using a parser chosen by the associated content media type.
-
-#If %args contains a 'content_cb' key with a CODE reference value, that callback function will be called after a successful response as:
-
-#$content_cb->( $url, $content, $http_response_object )
-#If %args contains a 'useragent' key with a LWP::UserAgent object value, that object is used to retrieve the requested URL without any configuration (such as setting the Accept: header) which would ordinarily take place. Otherwise, the default user agent ("default_useragent" in RDF::Trine) is cloned and configured to retrieve content that will be acceptable to any available parser.
-sub content_callback {
-  my $url = shift;
-  my $content = shift;
-  my $http_response_object = shift;
-
-#  print "\n== cb: url ==\n";
-#  print Dumper $url;
-
-  if ($http_response_object->is_success) {
-    	print "response ist OK!\n";
-  } else {
-   	print "response hat ein FAIL:\n";
-   	print $response->status_line . "\n\n\n";
-  }
-
-#  if ($opt_d) {
-#    	print "\n== cb: content ==\n";
-#    	print Dumper $content;
-#  }
-
-#  if ($opt_d) {
-#  	print "\n== cb: http_response_object ==\n";
-#  	print Dumper $http_response_object;
-#  }
-} 
-
-## test a url: returns FALSE if successful and 
-## the HTTP-Error if not.
-sub  pre_test_url_for_error {
-  my $url = shift;
-  my $ua  = shift;
-  print "== testing $url ...\n";
-  my $response = $ua->get($url);
-  print "== tested $url ...\n";
-  if ($response->is_success) {
-    return "";
-  }  else { 
-    print "== FAILED: " . $response->status_line . "\n";
-    return $response->status_line;
-  }
-}
 
 
