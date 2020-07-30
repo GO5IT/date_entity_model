@@ -1,4 +1,4 @@
-#!/usr/bin/perl -CSD
+#!/usr/bin/perl 
 
 ## -CSD
 
@@ -193,8 +193,10 @@ DateRDFUtils::add_triples_from_external_sameAs ( $model, $parser, $skos_exactmat
 DateRDFUtils::add_triples_from_external_sameAs ( $model, $parser, $owl_sameas, '//www.wikidata.org' , $checkinWikidata, $opt_p, "Wikidata", $opt_d, $log ); 
 
 ##### serialize the model to either outfile or to standard-output
-## the only way that worked: explicitely decode UTF-8 and write to a 'binary' stream  
-my $outstring = Encode::decode("UTF-8", $serializer->serialize_model_to_string ( $model ));
+## the only way that worked: explicitely decode UTF-8 and write to a 'binary' stream 
+## ATTENTION: only "utf8" (the loose, non-strict version) works; the strict "UTF-8" does NOT work:
+## Cf.   https://perldoc.perl.org/Encode.html
+my $outstring = decode("utf8", $serializer->serialize_model_to_string ( $model ));
 
 if ($fho) {
 	print $fho $outstring;
