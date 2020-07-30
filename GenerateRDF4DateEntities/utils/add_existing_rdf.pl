@@ -1,4 +1,4 @@
-#!/usr/bin/perl 
+#!/usr/bin/perl -CSD
 
 ## -CSD
 
@@ -9,6 +9,9 @@ use DateRDFUtils;
 use RDF::Trine;
 use RDF::Trine::Serializer;
 use Getopt::Std;
+use Encode;
+
+use utf8;
 
 my $DEFAULTLOG="add_existing.log";
 my $base_uri="http:://foo"; ## ?  
@@ -45,9 +48,25 @@ my $owl_sameas        = $DateRDFUtils::nsobjects->{'owl'}->sameAs;
 my $dbo_abstract      = $DateRDFUtils::nsobjects->{'dbo'}->abstract;
 my $foaf_primarytopic = $DateRDFUtils::nsobjects->{'foaf'}->primaryTopic;
 
-my $checkinDBPedia  = [  $owl_sameas, $rdfs_label, $foaf_primarytopic, $dbo_abstract  ];
-my $checkinWikidata = [  $rdfs_label, $foaf_primarytopic, $dbo_abstract  ];
 
+## which predicates fetch from DBpedia
+my $checkinDBPedia  = [  
+      $owl_sameas,
+	 $rdfs_label,
+	 $foaf_primarytopic,
+	 $dbo_abstract, 
+ ];
+
+
+## which predicates fetch from wikidata
+my $checkinWikidata = [  
+      $rdfs_label, 
+	$DateRDFUtils::nsobjects->{'wdt'}->P910, 
+	$DateRDFUtils::nsobjects->{'wdt'}->P6228,
+	$DateRDFUtils::nsobjects->{'wdtn'}->P244,
+	$DateRDFUtils::nsobjects->{'wdtn'}->P2581,
+	$DateRDFUtils::nsobjects->{'wdtn'}->P646,
+ ];
 
 our ($opt_h, $opt_d, $opt_i,$opt_o,$opt_l,$opt_u,$opt_t,$opt_p);
 getopts('hdi:o:l:u:tp');
@@ -109,10 +128,13 @@ my $fho;
 my $fhlog;
 
 if ($opt_i) {
-  open($fhi, '<', $opt_i);
+  open($fhi, "<:encoding(utf-8)", $opt_i);
 }
 if ($opt_o) {
-  open($fho, '>', $opt_o);
+  open($fho, ">", $opt_o);
+  ### puh! that's the only way I managed to print exotic UTF8 correctly (e.g. "ckb" -> Persian):
+  ### open fho as binary and use explicit decoding! 
+  binmode($fho) or die "Cannot set fho to binmode!\n";
 }
 if ($opt_l) {
   open($fhlog, '>', $logfile);
@@ -141,6 +163,7 @@ if ($opt_i) {
 } else {
     my $error = "";
     if ($opt_p) {
+       print "Fetching from url: $url ...\n";
        $error = DateRDFUtils::pre_test_url_for_error($url);
     }
     if ($error) {
@@ -167,13 +190,17 @@ my $log = {};
 ## 1st run: dbpedia
 DateRDFUtils::add_triples_from_external_sameAs ( $model, $parser, $skos_exactmatch, 'http://dbpedia.org' , $checkinDBPedia, $opt_p, "DBPedia", $opt_d, $log ); 
 ## 2nd run: wikidata
-# DateRDFUtils::add_triples_from_external_sameAs ( $model, $parser, $owl_sameas, '//www.wikidata.org' , $checkinWikidata, $opt_p, "DBPedia", $opt_d, $log ); 
+DateRDFUtils::add_triples_from_external_sameAs ( $model, $parser, $owl_sameas, '//www.wikidata.org' , $checkinWikidata, $opt_p, "Wikidata", $opt_d, $log ); 
 
 ##### serialize the model to either outfile or to standard-output
-my $outstring =  $serializer->serialize_model_to_string ( $model );
+## the only way that worked: explicitely decode UTF-8 and write to a 'binary' stream  
+my $outstring = Encode::decode("UTF-8", $serializer->serialize_model_to_string ( $model ));
+
 if ($fho) {
 	print $fho $outstring;
 } else {
+      ### does NOT work :-( 
+      binmode(STDOUT) or die "Cannot set binmode to STDOUT\n";
 	print $outstring;
 }
 

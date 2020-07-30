@@ -28,6 +28,8 @@ our $namespacehash = {
       owl => 'http://www.w3.org/2002/07/owl#',
       dbo => 'http://dbpedia.org/ontology/',
 	prov => 'http://www.w3.org/ns/prov#',
+      wdt => 'http://www.wikidata.org/prop/direct/',
+      wdtn => 'http://www.wikidata.org/prop/direct-normalized/',
 };
 
 ## for each entry in $namespacehash: automatically create namespace objects trine-namespaces ... 
@@ -38,12 +40,19 @@ foreach my $prefix (keys %$DateRDFUtils::namespacehash) {
 }  
 
 
+## reference from DBPedia to Wikidata:
+#	<owl:sameAs rdf:resource="http://wikidata.dbpedia.org/resource/Q2485"/>
+#	<owl:sameAs rdf:resource="http://www.wikidata.org/entity/Q2485"/>
+
+### corresponding entry in wikidata file: 
+## 
+###  <rdf:Description rdf:about="http://www.wikidata.org/entity/Q2485">
 ###########################################################
 ### create my own $ua used for pre-testing urls
 our $useragent = LWP::UserAgent->new;
         $useragent->default_header('Accept-Charset'  => 'utf-8');
         $useragent->default_header('Accept-Language' => "en");
-        $useragent->default_header('Accept' => $MEDIATYPERDFXML );
+        $useragent->default_header('Accept' => $DateRDFUtils::MEDIATYPERDFXML );
 
 ## add_triples_from_external_sameAs ( $model, $parser, $sameas, $filter, $predstoadd, $pretestURL, $logtag, $opt_d, $log ) 
 ##
@@ -74,16 +83,22 @@ sub add_triples_from_external_sameAs {
    my $pretestURL = shift; 
    my $logtag     = shift; 
    my $opt_d      = shift;   
-   my $log        = shift;      
+   my $log        = shift;
+
+   my $modelsize_before = 0;
+   my $modelsize_after = 0;      
 
    $logtag = "" unless $logtag; # to avoid error messages when uninitialized 
 
-   print "$logtag\tNumber of total RDF - statements in model BEFORE: " . $model->size . "\n";
+   $modelsize_before = $model->size;
+
+   print "STATS\t$logtag\tNumber of total RDF - statements in model BEFORE: " . $modelsize_before . "\n";
    ## get all subjects in model
    my @subjects = $model->subjects(undef, undef);
-   print "$logtag\tNumber of SUBJECTS in model BEFORE: " . scalar(@subjects) . "\n";
+   print "STATS\t$logtag\tNumber of SUBJECTS in model BEFORE: " . scalar(@subjects) . "\n";
    SUBJECT: foreach my $subject (@subjects) {
        print "$logtag\t==== subject: $subject ====\n";
+       if ($modelsize_after) { $modelsize_before = $modelsize_after};
        my $iter = $model->get_statements($subject, $sameas, undef);       
        SAMEAS: while (my $st = $iter->next) {
           my $sub  = $st->subject;
@@ -91,9 +106,9 @@ sub add_triples_from_external_sameAs {
           my $obj  = $st->object;  
           ### only consider objects which match $filter 
           if ($obj->as_string =~ m{$filter}) {
-               print "\t$logtag: selected:\t$pred\t$obj\n";
+               print "\t$logtag: selected as external reference:\t$pred\t$obj\n";
           } else {
-             print "\t$logtag: filtered:\t$pred\t$obj\n";
+             print "\t$logtag: neglected as external reference:\t$pred\t$obj\n";
              next SAMEAS; 
           }
           ### fetch the linked stuff in separate temporal model
@@ -105,7 +120,7 @@ sub add_triples_from_external_sameAs {
           }
           if ($error) {
                ### TODO: write info to logfile
-               print "$logtag: LEIDER FEHLGESCHLAGEN:\t" . $obj->uri_value . "\t$error\n";
+               print "$logtag: PRE_TEST_URL: LEIDER FEHLGESCHLAGEN:\t" . $obj->uri_value . "\t$error\n";
                next SAMEAS;
           }  else {
                 # parse_url_into_model ( $url, $model [, %args] )
@@ -114,29 +129,47 @@ sub add_triples_from_external_sameAs {
                 $lresponse = $parser->parse_url_into_model( $obj->uri_value, $localmodel, content_cb => \&content_callback );
           }
           ### now extract ALL relevant triples for localmodel 
-          print "\n$logtag\tNumber of RDF - statements in LOCAL model: " . $localmodel->size . "\n";
+          print "\nSTATS\t$logtag\tNumber of RDF - statements in LOCAL model: " . $localmodel->size . "\n";
           my $localiter = $localmodel->get_statements(undef, undef, undef);
+          my $triplecount_total = 0;  ## total number of statements
+          my $triplecount_subj = 0;  ## number of statements with correct subject
+          my $triplecount_selected = 0; ## number of statements with correct subject AND predicate
           TRIPLE: while (my $lst = $localiter->next) {
     	        my $lsub  = $lst->subject;
     	        my $lpred = $lst->predicate;
     	        my $lobj  = $lst->object;
  
+              $triplecount_total++; 
               if ($opt_d)  {
      	           print "lpred: $lpred\n";
      	           print Data::Dumper::Dumper($lpred);
      	           print "---\n";
               }
 
+              if ( ! $lsub->equal($obj) ) {
+                 print "\t$logtag\tLSUBJECT does not match: $lsub  -> ignored\n"; 
+                 next TRIPLE;
+		  } else {
+			print "\n$logtag\tLSUBJECT MATCHES: $lsub\n"; 
+              }
+            
+              $triplecount_subj++;
               ### filter! Only use those preds enumerated in @interestingpreds
               ### iff @interestingpreds is empty: add ALL triples 
               if ( not(@$predstoadd) or grep { $lpred->equal($_) } @$predstoadd ) {
+                   $triplecount_selected++;
                    print "$logtag\tHIT:\t\t$lpred\t$lobj\n"; # if ($opt_d);
 	             ## add triple to GLOBAL model
                    $model->add_statement( RDF::Trine::Statement->new($subject, $lpred, $lobj) );
               }
            } # TRIPLE
+           ### statistics:
+           $modelsize_after = $model->size;
+           my $actually_inserted = $modelsize_after - $modelsize_before;
+           print "STATS\t$logtag\t$subject\ttriple-total:$triplecount_total\ttriple-subj:$triplecount_subj\tselected:$triplecount_selected\n";
+           print "STATS\t$logtag\t$subject\tactually inserted: $actually_inserted\n";
           } # SAMEAS
-        print "$logtag\tNumber of RDF - statements in model AFTER: " . $model->size . "\n";
+        print "STATS\t$logtag\tNumber of RDF - statements in model AFTER: " . $model->size . "\n";
   } # SUBJECT
 }
 
@@ -258,7 +291,6 @@ my $mm2txt = {
    }
 };
 
-
 ##
 my $wday2txt = {
   en => {
@@ -313,7 +345,6 @@ sub numeral2ordinal {
   }
   return $th;
 }
-
 
 ## map year to $decade
 ## simply remove last digit
