@@ -15,7 +15,26 @@ package DateRDFUtils;
 
 our $MEDIATYPERDFXML = 'application/rdf+xml';
 
-### used for RDF::Trine::Serializer
+############### Documentation FROM: https://metacpan.org/pod/RDF::Trine
+## Create namespace objects
+###   ### now in: $DateRDFUtils::namespacehash;  
+#my $dc=RDF::Trine::Namespace->new('http://purl.org/dc/elements/');
+#my $dcterms=RDF::Trine::Namespace->new('http://purl.org/dc/terms/');
+#my $rdf=RDF::Trine::Namespace->new('http://www.w3.org/1999/02/22-rdf-syntax-ns#');
+#my $rdfs=RDF::Trine::Namespace->new('http://www.w3.org/2000/01/rdf-schema#');
+#my $skos=RDF::Trine::Namespace->new('http://www.w3.org/2004/02/skos/core#');
+#my $time=RDF::Trine::Namespace->new('http://www.w3.org/2006/time#');
+#my $xsd=RDF::Trine::Namespace->new('http://www.w3.org/2001/XMLSchema#');
+#my $foaf = RDF::Trine::Namespace->new( 'http://xmlns.com/foaf/0.1/' );
+
+#### namespaces in serialisation.
+#The valid key-values used in %options are specific to a particular serializer implementation. For serializers that support namespace declarations (to allow more concise serialization), use namespaces => \%namespaces in %options, where the keys of %namespaces are namespace names and the values are (partial) URIs. For serializers that support base URI declarations, use base_uri => $base_uri .
+
+# alternatively:
+# my $pred = RDF::Trine::Node::Resource->new('http://xmlns.com/foaf/0.1/name');
+ 
+############## NAMESPACES: it is important that all NAMESPACE-Prefixes are managed here: 
+############## they then can be used used for RDF::Trine::Serializer
 our $namespacehash = {
       dc => 'http://purl.org/dc/elements/',
 	dcterms => 'http://purl.org/dc/terms/',
@@ -39,20 +58,13 @@ foreach my $prefix (keys %$DateRDFUtils::namespacehash) {
    $nsobjects->{$prefix} = RDF::Trine::Namespace->new($DateRDFUtils::namespacehash->{$prefix});
 }  
 
-
-## reference from DBPedia to Wikidata:
-#	<owl:sameAs rdf:resource="http://wikidata.dbpedia.org/resource/Q2485"/>
-#	<owl:sameAs rdf:resource="http://www.wikidata.org/entity/Q2485"/>
-
-### corresponding entry in wikidata file: 
-## 
-###  <rdf:Description rdf:about="http://www.wikidata.org/entity/Q2485">
 ###########################################################
-### create my own $ua used for pre-testing urls
+### create my own $useragent used for pre-testing urls
 our $useragent = LWP::UserAgent->new;
         $useragent->default_header('Accept-Charset'  => 'utf-8');
         $useragent->default_header('Accept-Language' => "en");
         $useragent->default_header('Accept' => $DateRDFUtils::MEDIATYPERDFXML );
+
 
 ## add_triples_from_external_sameAs ( $model, $parser, $sameas, $filter, $predstoadd, $pretestURL, $logtag, $opt_d, $log ) 
 ##
@@ -234,7 +246,6 @@ sub content_callback {
 
    return 1;
 } 
-
 
 ###########################################################
 ###  Re-usable bits and pieces for Go's Date-to-RDF project

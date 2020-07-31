@@ -55,6 +55,9 @@ $CHANGEPRED = {
 
 # For PREDSTOCHANGE convert the strings back to RDF::Trine::Node::Resource - objects!
 @PREDSTOCHANGE = map { RDF::Trine::Node::Resource->new($_); } keys(%$CHANGEPRED);
+
+
+
 #########################################################################
 
 our ($opt_h, $opt_d, $opt_i,$opt_o,$opt_l,$opt_t);
@@ -65,6 +68,9 @@ sub usage {
 
 USAGE $0 (-h) (-d) (-t) (-i <INPUTFILE>) (-o <OUTPUTFILE>) (-l <LOGFILE>) 
 
+Rename properties in RDF.
+
+ 
 -i <INPUTFILE>
 
 -o <OUTPUTFILE>
@@ -73,9 +79,9 @@ USAGE $0 (-h) (-d) (-t) (-i <INPUTFILE>) (-o <OUTPUTFILE>) (-l <LOGFILE>)
 -l <LOGFILE> Name of logfile.
              DEFAULT: $DEFAULTLOG
 
--t           TEST-MODE
+-t           TEST-MODE: just display the conversion-table
 
--d           Debug mode
+-d           Debug mode: extensive: show each and every statement which is changed
 
 -h           Print this message
 
@@ -90,11 +96,8 @@ if ($opt_h) {
 
 ## option -t : just print transformation-tables and exit
 if ($opt_t) {
-  print "=== CHANGEPRED ===\n";
-  print Dumper %$CHANGEPRED;
-  print "=== PREDSTOCHANGE ===\n";
-  print Dumper @PREDSTOCHANGE;
-  exit;
+   pretty_print_changepred($CHANGEPRED);
+   exit;
 }
 
 
@@ -126,8 +129,8 @@ my $serializer = RDF::Trine::Serializer->new('rdfxml', namespaces => $DateRDFUti
 
 ## test mode: test some settings and exit
 if ($opt_t) {	
-	print "parser->media_type = " . $parser->media_type . "\n";  
-	print "parser->media_types = " . $parser->media_types . "\n"; 
+      print "parser->media_type = " . $parser->media_type . "\n";  
+      print "parser->media_types = " . $parser->media_types . "\n"; 
  
       print "== Parser for media_type $MEDIATYPE :\n";
       print $parser->parser_by_media_type ( $MEDIATYPE ); 
@@ -139,7 +142,7 @@ my $response;
 $response = $parser->parse_file_into_model( $BASEURI, $fhi, $model );
 
 ### Print headings for logger
-print $fhlog "Subject\tNumber_triples_IN\t\tNumber_triples_OUT\tdiff\n";
+print $fhlog "Subject\tNumber\tNumber_triples_IN\t\tNumber_triples_OUT\tdiff\n";
 
 ### in order to have a clearer logging: do not go over all statements in one pass 
 ### but fetch each subject in turn
@@ -151,7 +154,8 @@ my $subject_counter = 0;
 
 SUBJECT: foreach my $subject (@subjects) { 
    $subject_counter++;
-   if ($opt_d) { print join("\t", "SUBJECT: $subject_counter / $total_number_of_subjects:",  $subject->as_string,"\n"); }
+   ## just  print a bit of a progress report to STDOUT 
+   print join("\t", "SUBJECT: $subject_counter / $total_number_of_subjects:",  $subject->as_string,"\n"); 
    ### loop over ALL triples
    my $iter = $model->get_statements($subject, undef, undef);
    my $number_of_triples_in      = 0;
@@ -164,15 +168,15 @@ SUBJECT: foreach my $subject (@subjects) {
          my $pred = $statement->predicate; 
     	 my $obj  = $statement->object; 
      
-         # if ($opt_d) { print "TESTING: " . $statement->as_string . "\n"; }
+         if ($opt_d) { print "TESTING: " . $statement->as_string . "\n"; }
          
          if ( grep  { $pred->equal($_) }  @PREDSTOCHANGE ) { 
             $number_of_triples_renamed++;
             my $newpred = $CHANGEPRED->{ $pred->uri };
             ## add renamed
             my $newstatement = RDF::Trine::Statement->new( $subj, $newpred, $obj );
-            # if ($opt_d) { print "\tNEW       : " . $newstatement->as_string . "\n"; }
-            # if ($opt_d) { print "\tDELETE OLD: " . $statement->as_string . "\n"; }
+            if ($opt_d) { print "\tNEW       : " . $newstatement->as_string . "\n"; }
+            if ($opt_d) { print "\tDELETE OLD: " . $statement->as_string . "\n"; }
 	    $model->add_statement( $newstatement );
             ## delete old
             $model->remove_statement($statement);
@@ -180,7 +184,7 @@ SUBJECT: foreach my $subject (@subjects) {
     } ## TRIPLE
   $number_of_triples_out = $model->count_statements ( $subject, undef, undef );
   $diff = $number_of_triples_out - $number_of_triples_in;
-  print $fhlog join("\t", $subject->as_string, $number_of_triples_in, $number_of_triples_out, $diff, "\n");
+  print $fhlog join("\t", $subject->as_string, "$subject_counter / $total_number_of_subjects", $number_of_triples_in, $number_of_triples_out, $diff, "\n");
 } ## SUBJECT
 
 ##### serialize the model to either outfile or to standard-output
@@ -204,24 +208,13 @@ if ($fhlog) { close($fhlog); }
 
 ## ======================= END MAIN ==============================
 
-## Create namespace objects
-###   ### now in: $DateRDFUtils::namespacehash;  
-#my $dc=RDF::Trine::Namespace->new('http://purl.org/dc/elements/');
-#my $dcterms=RDF::Trine::Namespace->new('http://purl.org/dc/terms/');
-#my $rdf=RDF::Trine::Namespace->new('http://www.w3.org/1999/02/22-rdf-syntax-ns#');
-#my $rdfs=RDF::Trine::Namespace->new('http://www.w3.org/2000/01/rdf-schema#');
-#my $skos=RDF::Trine::Namespace->new('http://www.w3.org/2004/02/skos/core#');
-#my $time=RDF::Trine::Namespace->new('http://www.w3.org/2006/time#');
-#my $xsd=RDF::Trine::Namespace->new('http://www.w3.org/2001/XMLSchema#');
-#my $foaf = RDF::Trine::Namespace->new( 'http://xmlns.com/foaf/0.1/' );
-
-#### namespaces in serialisation.
-#The valid key-values used in %options are specific to a particular serializer implementation. For serializers that support namespace declarations (to allow more concise serialization), use namespaces => \%namespaces in %options, where the keys of %namespaces are namespace names and the values are (partial) URIs. For serializers that support base URI declarations, use base_uri => $base_uri .
-
-
-# alternatively:
-# my $pred = RDF::Trine::Node::Resource->new('http://xmlns.com/foaf/0.1/name');
- 
-######################## END MAIN #########################
+sub pretty_print_changepred { 
+   my $hash = shift;
+   print "\n=== TRANSFORMATION-TABLE ===\n";
+   foreach my $key (sort keys(%$hash)) { 
+     print join("\t", $key, "=>", $hash->{$key}->uri ,"\n");
+   } 
+   print "\n";
+}
 
 
