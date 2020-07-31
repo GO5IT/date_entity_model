@@ -60,11 +60,13 @@ foreach my $prefix (keys %$DateRDFUtils::namespacehash) {
 
 ###########################################################
 ### create my own $useragent used for pre-testing urls
-our $useragent = LWP::UserAgent->new;
-        $useragent->default_header('Accept-Charset'  => 'utf-8');
-        $useragent->default_header('Accept-Language' => "en");
-        $useragent->default_header('Accept' => $DateRDFUtils::MEDIATYPERDFXML );
+our $useragent = LWP::UserAgent->new(
+           protocols_allowed => [ 'http', 'https' ] 
+);
 
+  $useragent->default_header('Accept-Charset'  => 'utf-8');
+  $useragent->default_header('Accept-Language' => "en");
+  $useragent->default_header('Accept' => $DateRDFUtils::MEDIATYPERDFXML );
 
 ## add_triples_from_external_sameAs ( $model, $parser, $sameas, $filter, $predstoadd, $pretestURL, $logtag, $opt_d, $log ) 
 ##
@@ -85,7 +87,7 @@ our $useragent = LWP::UserAgent->new;
 ##			On the other hand it doubles the number of calls :-(             
 ## logtag         A string which is just used in the supply a tag which is used in the print-outs of the log. E.g. "DBpedia" 
 ## opt_d          Debug flag
-## log            A logging-object : a hashref holding log-info (NOT YET USED !)
+## log            A logging-object : a hashref  for collecting log-info (NOT YET USED !)
 sub add_triples_from_external_sameAs {
    my $model      = shift; 
    my $parser     = shift;  
@@ -108,8 +110,22 @@ sub add_triples_from_external_sameAs {
    ## get all subjects in model
    my @subjects = $model->subjects(undef, undef);
    print "STATS\t$logtag\tNumber of SUBJECTS in model BEFORE: " . scalar(@subjects) . "\n";
-   SUBJECT: foreach my $subject (@subjects) {
+   SUBJECT: foreach my $subject (@subjects) { 
        print "$logtag\t==== subject: $subject ====\n";
+       ## intialize $log   
+       ## create a localhhash for storing info per subject. 
+       my $llog = { 
+                 'http_success' => "",
+		 'triple-actually_inserted' => "",
+                 'triple-selected' => "",
+                 'triple-subj' => ""
+       };
+     
+       if ( not defined ( $log->{ $subject->as_string }->{ $logtag }  ) ) { 
+		$log->{ $subject->as_string }->{ $logtag } = $llog;
+       } else {
+	  $llog = $log->{ $subject->as_string }->{ $logtag } ;
+       } 
        if ($modelsize_after) { $modelsize_before = $modelsize_after};
        my $iter = $model->get_statements($subject, $sameas, undef);       
        SAMEAS: while (my $st = $iter->next) {
@@ -118,9 +134,9 @@ sub add_triples_from_external_sameAs {
           my $obj  = $st->object;  
           ### only consider objects which match $filter 
           if ($obj->as_string =~ m{$filter}) {
-               print "\t$logtag: selected as external reference:\t$pred\t$obj\n";
+               print "\t$logtag: selected as external reference:\t$pred\t$obj\n" if ($opt_d);
           } else {
-             print "\t$logtag: neglected as external reference:\t$pred\t$obj\n";
+             print "\t$logtag: neglected as external reference:\t$pred\t$obj\n" if ($opt_d); 
              next SAMEAS; 
           }
           ### fetch the linked stuff in separate temporal model
@@ -133,6 +149,8 @@ sub add_triples_from_external_sameAs {
           if ($error) {
                ### TODO: write info to logfile
                print "$logtag: PRE_TEST_URL: LEIDER FEHLGESCHLAGEN:\t" . $obj->uri_value . "\t$error\n";
+               $llog->{ http_success } = $error ;
+        
                next SAMEAS;
           }  else {
                 # parse_url_into_model ( $url, $model [, %args] )
@@ -140,8 +158,8 @@ sub add_triples_from_external_sameAs {
                 # using a parser chosen by the associated content media type.
                 $lresponse = $parser->parse_url_into_model( $obj->uri_value, $localmodel, content_cb => \&content_callback );
           }
-          ### now extract ALL relevant triples for localmodel 
-          print "\nSTATS\t$logtag\tNumber of RDF - statements in LOCAL model: " . $localmodel->size . "\n";
+          ### now extract ALL relevant triples for localmodel        
+          print "\nSTATS\t$logtag\tNumber of RDF - statements in LOCAL model: " . $localmodel->size . "\n" if ($opt_d); 
           my $localiter = $localmodel->get_statements(undef, undef, undef);
           my $triplecount_total = 0;  ## total number of statements
           my $triplecount_subj = 0;  ## number of statements with correct subject
@@ -152,17 +170,17 @@ sub add_triples_from_external_sameAs {
     	        my $lobj  = $lst->object;
  
               $triplecount_total++; 
-              if ($opt_d)  {
-     	           print "lpred: $lpred\n";
-     	           print Data::Dumper::Dumper($lpred);
-     	           print "---\n";
-              }
+#              if ($opt_d)  {
+#     	           print "lpred: $lpred\n";
+#     	           print Data::Dumper::Dumper($lpred);
+#     	           print "---\n";
+#              }
 
               if ( ! $lsub->equal($obj) ) {
-                 print "\t$logtag\tLSUBJECT does not match: $lsub  -> ignored\n"; 
+                 print "\t$logtag\tLSUBJECT does not match: $lsub  -> ignored\n" if ($opt_d); 
                  next TRIPLE;
 		  } else {
-			print "\n$logtag\tLSUBJECT MATCHES: $lsub\n"; 
+			print "\n$logtag\tLSUBJECT MATCHES: $lsub\n" if ($opt_d);
               }
             
               $triplecount_subj++;
@@ -170,7 +188,7 @@ sub add_triples_from_external_sameAs {
               ### iff @interestingpreds is empty: add ALL triples 
               if ( not(@$predstoadd) or grep { $lpred->equal($_) } @$predstoadd ) {
                    $triplecount_selected++;
-                   print "$logtag\tHIT:\t\t$lpred\t$lobj\n"; # if ($opt_d);
+                   print "$logtag\tHIT:\t\t$lpred\t$lobj\n" if ($opt_d);
 	             ## add triple to GLOBAL model
                    $model->add_statement( RDF::Trine::Statement->new($subject, $lpred, $lobj) );
               }
@@ -178,11 +196,15 @@ sub add_triples_from_external_sameAs {
            ### statistics:
            $modelsize_after = $model->size;
            my $actually_inserted = $modelsize_after - $modelsize_before;
-           print "STATS\t$logtag\t$subject\ttriple-total:$triplecount_total\ttriple-subj:$triplecount_subj\tselected:$triplecount_selected\n";
-           print "STATS\t$logtag\t$subject\tactually inserted: $actually_inserted\n";
-          } # SAMEAS
-        print "STATS\t$logtag\tNumber of RDF - statements in model AFTER: " . $model->size . "\n";
+           print "STATS\t$logtag\t$subject\ttriple-total:$triplecount_total\ttriple-subj:$triplecount_subj\tselected:$triplecount_selected\n" if ($opt_d); 
+           print "STATS\t$logtag\t$subject\tactually inserted: $actually_inserted\n" if ($opt_d); 
+
+           $llog->{ 'triple-subj' } = $triplecount_subj;
+           $llog->{ 'triple-selected' } = $triplecount_selected;
+           $llog->{ 'triple-actually_inserted' } = $actually_inserted;
+          } # SAMEAS  
   } # SUBJECT
+ print "STATS\t$logtag\tNumber of RDF - statements in model AFTER: " . $model->size . "\n";
 }
 
 ## pre_test_url_for_error ($url, $useragent) 
@@ -211,6 +233,24 @@ sub pre_test_url_for_error {
   }
 }
 
+### render the log-hash as csv 
+sub render_loghash_as_csv {
+   my $log = shift;
+   my @result; 
+   my @line = ();
+   print join("\t", "subject", "level1", "x", "y", "z", "...", "\n");
+   foreach my $s (sort keys %$log) {
+       push (@line, $s);
+       foreach my $level1 ( sort keys %{$log->{$s}} ) {
+          push (@line, "$level1:");
+          foreach my $level2 ( sort keys %{$log->{$s}->{$level1}} ) {
+              push(@line, "$level2:");
+              push(@line, $log->{$s}->{$level1}->{$level2});
+          }
+       }
+       print join("\t", @line, "\n");
+   }
+}
 
 #parse_url_into_model ( $url, $model [, %args] )
 #Retrieves the content from $url and attempts to parse the resulting RDF into $model using a parser chosen by the associated content media type.

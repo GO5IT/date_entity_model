@@ -96,7 +96,7 @@ USAGE $0 (-h) (-d) (-i <INPUTFILE>) (-o <OUTPUTFILE>) (-l <LOGFILE>) (-t)
 
 -t           TEST-MODE
 
--d           Debug mode
+-d           Debug mode: print excessive information to <STDOUT>
 
 -p           pre-test each \$url with your own UserAgent - this seems to be the only way to 
 	     fetch errors without dying!  
@@ -136,9 +136,8 @@ if ($opt_o) {
   ### open fho as binary and use explicit decoding! 
   binmode($fho) or die "Cannot set fho to binmode!\n";
 }
-if ($opt_l) {
-  open($fhlog, '>', $logfile);
-}
+
+open($fhlog, '>', $logfile);
 
 ### initialize 
 my $store      = RDF::Trine::Store::Memory->new();
@@ -204,6 +203,14 @@ if ($fho) {
       ### does NOT work :-( 
       binmode(STDOUT) or die "Cannot set binmode to STDOUT\n";
 	print $outstring;
+}
+
+if ($fhlog) { 
+
+  print $fhlog Dumper $log; 
+
+  DateRDFUtils::render_loghash_as_csv($log);
+
 }
 
 ## close all open files
