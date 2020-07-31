@@ -42,6 +42,8 @@ my $BASEURI="";
 ### KEYS in the hash must be strings: therefore we use the "->uri" function, which returns the uri as string
 my $CHANGEPRED = {};
 my @PREDSTOCHANGE = ();
+my $SPECIALTREATMENT = {};
+my @PREDSTOCHANGESPECIAL = ();
 
 $CHANGEPRED = {
    $DateRDFUtils::nsobjects->{'owl'}->sameAs->uri  =>  $DateRDFUtils::nsobjects->{'skos'}->exactMatch,
@@ -51,11 +53,18 @@ $CHANGEPRED = {
    $DateRDFUtils::nsobjects->{'wdtn'}->P2581->uri  =>  $DateRDFUtils::nsobjects->{'skos'}->exactMatch,
    $DateRDFUtils::nsobjects->{'wdtn'}->P646->uri  =>  $DateRDFUtils::nsobjects->{'skos'}->exactMatch,
    $DateRDFUtils::nsobjects->{'foaf'}->primaryTopic->uri  =>  $DateRDFUtils::nsobjects->{'rdfs'}->seeAlso,
+   $DateRDFUtils::nsobjects->{'dbo'}->abstract->uri  =>  $DateRDFUtils::nsobjects->{'rdfs'}->comment,
 };
 
-# For PREDSTOCHANGE convert the strings back to RDF::Trine::Node::Resource - objects!
-@PREDSTOCHANGE = map { RDF::Trine::Node::Resource->new($_); } keys(%$CHANGEPRED);
+## IN ADDITION: note predicates with special treatment and provide special functions.
+$SPECIALTREATMENT = {
+   $DateRDFUtils::nsobjects->{'wdt'}->P6228->uri => \&treat_p6628, 
+};
 
+
+# For PREDSTOCHANGE convert the strings back to RDF::Trine::Node::Resource - objects!
+@PREDSTOCHANGE        = map { RDF::Trine::Node::Resource->new($_); } keys(%$CHANGEPRED);
+@PREDSTOCHANGESPECIAL = map { RDF::Trine::Node::Resource->new($_); } keys(%$SPECIALTREATMENT);
 
 
 #########################################################################
@@ -169,18 +178,27 @@ SUBJECT: foreach my $subject (@subjects) {
     	 my $obj  = $statement->object; 
      
          if ($opt_d) { print "TESTING: " . $statement->as_string . "\n"; }
-         
-         if ( grep  { $pred->equal($_) }  @PREDSTOCHANGE ) { 
-            $number_of_triples_renamed++;
-            my $newpred = $CHANGEPRED->{ $pred->uri };
-            ## add renamed
-            my $newstatement = RDF::Trine::Statement->new( $subj, $newpred, $obj );
-            if ($opt_d) { print "\tNEW       : " . $newstatement->as_string . "\n"; }
-            if ($opt_d) { print "\tDELETE OLD: " . $statement->as_string . "\n"; }
-	    $model->add_statement( $newstatement );
-            ## delete old
-            $model->remove_statement($statement);
-          } 
+         my $newstatement;
+         ## special transformation? 
+         if ( $SPECIALTREATMENT->{$pred->uri } ) {
+                  $newstatement = $SPECIALTREATMENT->{$pred->uri }->($statement);               
+             } 
+         ## normal transformation? 
+         elsif ( $CHANGEPRED->{ $pred->uri } ) { 
+            my $newpred =  $CHANGEPRED->{ $pred->uri } ; 
+            $newstatement = RDF::Trine::Statement->new( $subj, $newpred, $obj );
+         }  else  { 
+            ## do nothing 
+            next TRIPLE;        
+         }
+
+         $number_of_triples_renamed++;
+         ## add new  
+         if ($opt_d) { print "\tNEW       : " . $newstatement->as_string . "\n"; }
+         if ($opt_d) { print "\tDELETE OLD: " . $statement->as_string . "\n"; }
+	 $model->add_statement( $newstatement );
+         ## delete old
+         $model->remove_statement($statement);
     } ## TRIPLE
   $number_of_triples_out = $model->count_statements ( $subject, undef, undef );
   $diff = $number_of_triples_out - $number_of_triples_in;
@@ -207,6 +225,18 @@ if ($fho)   { close($fho); }
 if ($fhlog) { close($fhlog); }
 
 ## ======================= END MAIN ==============================
+
+
+## <wdt:P6228>15453</wdt:P6228>
+## create... 
+sub treat_p6628 {
+  my $statement = shift;
+  my ($s,$p,$o)  = $statement->nodes();    
+  my $newOstring  = "https://regiowiki.at/wiki/?curid=" . $o->literal_value; 
+  my $newO = RDF::Trine::Node::Resource->new( $newOstring );
+  my $newstatement = RDF::Trine::Statement->new( $s, $DateRDFUtils::nsobjects->{'rdfs'}->seeAlso, $newO );
+  return $newstatement;
+} 
 
 sub pretty_print_changepred { 
    my $hash = shift;
