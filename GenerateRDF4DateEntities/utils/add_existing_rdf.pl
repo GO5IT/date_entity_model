@@ -96,7 +96,7 @@ USAGE $0 (-h) (-d) (-i <INPUTFILE>) (-o <OUTPUTFILE>) (-l <LOGFILE>) (-t)
 
 -t           TEST-MODE
 
--d           Debug mode: print list of dates - and NO RDF
+-d           Debug mode
 
 -p           pre-test each \$url with your own UserAgent - this seems to be the only way to 
 	     fetch errors without dying!  

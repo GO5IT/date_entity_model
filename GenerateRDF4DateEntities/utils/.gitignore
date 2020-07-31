@@ -1,5 +1,5 @@
 sample_*.rdf
 generated_data
-
+*.log
 reusableCode
 MonthDayUnitOfTime
