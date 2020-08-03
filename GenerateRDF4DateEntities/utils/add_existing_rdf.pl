@@ -15,7 +15,6 @@ use utf8;
 
 my $DEFAULTLOG="add_existing_log.csv";
 
-
 my $base_uri="http:://foo"; ## ?  
 
 # my $DEFAULTURL='http://dbpedia.org/resource/563_BC';
@@ -50,7 +49,6 @@ my $owl_sameas        = $DateRDFUtils::nsobjects->{'owl'}->sameAs;
 my $dbo_abstract      = $DateRDFUtils::nsobjects->{'dbo'}->abstract;
 my $foaf_primarytopic = $DateRDFUtils::nsobjects->{'foaf'}->primaryTopic;
 
-
 ## which predicates fetch from DBpedia
 my $checkinDBPedia  = [  
       $owl_sameas,
@@ -70,8 +68,8 @@ my $checkinWikidata = [
 	$DateRDFUtils::nsobjects->{'wdtn'}->P646,
  ];
 
-our ($opt_h, $opt_d, $opt_i,$opt_o,$opt_l,$opt_u,$opt_t);
-getopts('hdi:o:l:u:t');
+our ($opt_h, $opt_d, $opt_i,$opt_o,$opt_l,$opt_u,$opt_t,$opt_L);
+getopts('hdi:o:l:u:tL:');
 
 
 sub usage {
@@ -97,6 +95,8 @@ USAGE $0 (-h) (-d) (-i <INPUTFILE>) (-o <OUTPUTFILE>) (-l <LOGFILE>) (-t)
 
              Actually currently TWO log-files will be written: 
              a csv file and a Dump of the structue. 
+
+-L <LIMIT>   Only process <LIMIT> RDF:Descriptions. (For testing!)
 
 -t           TEST-MODE
 
@@ -209,9 +209,9 @@ if ($opt_d && !$fhi) {
 ## these also include owl:sameAs for wikidata 
 my $log = {}; 
 ## 1st run: dbpedia
-DateRDFUtils::add_triples_from_external_sameAs ( $model, $parser, $skos_exactmatch, 'http://dbpedia.org' , $checkinDBPedia, "01_DBPedia", $opt_d, $log ); 
+DateRDFUtils::add_triples_from_external_sameAs ( $model, $parser, $skos_exactmatch, 'http://dbpedia.org' , $checkinDBPedia, "01_DBPedia", $opt_d, $log, $opt_L ); 
 ## 2nd run: wikidata
-DateRDFUtils::add_triples_from_external_sameAs ( $model, $parser, $owl_sameas, '//www.wikidata.org' , $checkinWikidata, "02_Wikidata", $opt_d, $log ); 
+DateRDFUtils::add_triples_from_external_sameAs ( $model, $parser, $owl_sameas, '//www.wikidata.org' , $checkinWikidata, "02_Wikidata", $opt_d, $log, $opt_L ); 
 
 ##### serialize the model to either outfile or to standard-output
 ## the only way that worked: explicitely decode UTF-8 and write to a 'binary' stream 

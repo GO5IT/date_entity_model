@@ -86,6 +86,7 @@ our $useragent = LWP::UserAgent->new(
 ## logtag         A string which is just used in the supply a tag which is used in the print-outs of the log. E.g. "DBpedia" 
 ## opt_d          Debug flag
 ## log            A logging-object : a hashref  for collecting log-info (NOT YET USED !)
+## opt_L          Limit number of subjects (for testing)
 sub add_triples_from_external_sameAs {
    my $model      = shift; 
    my $parser     = shift;  
@@ -95,6 +96,7 @@ sub add_triples_from_external_sameAs {
    my $logtag     = shift; 
    my $opt_d      = shift;   
    my $log        = shift;
+   my $opt_L	= shift;
 
    my $modelsize_before = 0;
    my $modelsize_after = 0;      
@@ -104,11 +106,16 @@ sub add_triples_from_external_sameAs {
    $modelsize_before = $model->size;
 
    print "STATS\t$logtag\tNumber of total RDF - statements in model BEFORE: " . $modelsize_before . "\n";
-   ## get all subjects in model
-   my @subjects = $model->subjects(undef, undef);
-   print "STATS\t$logtag\tNumber of SUBJECTS in model BEFORE: " . scalar(@subjects) . "\n";
+   ## get all subjects in model - and sort them by year !
+   my @subjects = sort compare_subject_years  $model->subjects(undef, undef);
+   my $number_of_subjects = scalar(@subjects);
+   print "STATS\t$logtag\tNumber of SUBJECTS in model BEFORE: " . $number_of_subjects . "\n";
+   my $subjectcount = 0;
+
    SUBJECT: foreach my $subject (@subjects) { 
-       print "$logtag\t==== subject: $subject ====\n";
+       $subjectcount++;
+       last SUBJECT if ($opt_L && $subjectcount > $opt_L); 
+       print "$logtag\t==== subject $subjectcount / $number_of_subjects : $subject ====\n";
        ## intialize $log   
        ## create a local hash for storing info per subject. 
 #                 '1_error' => "",
@@ -124,7 +131,8 @@ sub add_triples_from_external_sameAs {
        } 
 
        if ($modelsize_after) { $modelsize_before = $modelsize_after};
-       my $iter = $model->get_statements($subject, $sameas, undef);       
+       my $iter = $model->get_statements($subject, $sameas, undef); 
+      
        SAMEAS: while (my $st = $iter->next) {
           my $sub  = $st->subject;
           my $pred = $st->predicate;
@@ -145,7 +153,7 @@ sub add_triples_from_external_sameAs {
           eval {
 		     # code that might throw exception
 		     $lresponse = $parser->parse_url_into_model( $obj->uri_value, $localmodel, content_cb => \&content_callback );
-                 print "$logtag: parse_url_into_model() SUCCESS:\t" . $obj->uri_value . "\n";
+                 print "$logtag:\t\tparse_url_into_model() SUCCESS:\t" . $obj->uri_value . "\n";
 		     1;  # always return true to indicate success
 		}
 		or do {
@@ -155,7 +163,7 @@ sub add_triples_from_external_sameAs {
 		    # removed
 		    my $error = $@ || 'Unknown failure';
 		    # report the exception and do something about it
-		    print "$logtag: parse_url_into_model() FAILED:\t" . $obj->uri_value . "\t$error\n";
+		    print "$logtag:\t\tparse_url_into_model() FAILED:\t" . $obj->uri_value . "\t$error\n";
 		    $llog->{ '1_error' } .= "|$error|" ;       
 		    next SAMEAS;   
 		};
@@ -234,6 +242,14 @@ sub add_triples_from_external_sameAs {
 ##    return $response->status_line;
 ##  }
 ##}
+
+########### sort function for sorting subhects per year 
+# compare two numbers
+sub compare_subject_years{
+   ( my $ayear = $a->uri_value ) =~ s{^.+/}{}; 
+   ( my $byear = $b->uri_value ) =~ s{^.+/}{};
+   $ayear <=> $byear;  # presuming numeric
+}
 
 ##############################  LOGGING #######################
 
