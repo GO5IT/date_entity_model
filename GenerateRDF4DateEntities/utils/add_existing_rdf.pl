@@ -13,7 +13,9 @@ use Encode;
 
 use utf8;
 
-my $DEFAULTLOG="add_existing.log";
+my $DEFAULTLOG="add_existing_log.csv";
+
+
 my $base_uri="http:://foo"; ## ?  
 
 # my $DEFAULTURL='http://dbpedia.org/resource/563_BC';
@@ -68,10 +70,9 @@ my $checkinWikidata = [
 	$DateRDFUtils::nsobjects->{'wdtn'}->P646,
  ];
 
-our ($opt_h, $opt_d, $opt_i,$opt_o,$opt_l,$opt_u,$opt_t,$opt_p);
-getopts('hdi:o:l:u:tp');
+our ($opt_h, $opt_d, $opt_i,$opt_o,$opt_l,$opt_u,$opt_t);
+getopts('hdi:o:l:u:t');
 
-$opt_p = 0 unless $opt_p;
 
 sub usage {
   print <<"EOF";
@@ -94,12 +95,12 @@ USAGE $0 (-h) (-d) (-i <INPUTFILE>) (-o <OUTPUTFILE>) (-l <LOGFILE>) (-t)
 -l <LOGFILE> Name of logfile.
              DEFAULT: $DEFAULTLOG
 
+             Actually currently TWO log-files will be written: 
+             a csv file and a Dump of the structue. 
+
 -t           TEST-MODE
 
--d           Debug mode: print excessive information to <STDOUT>
-
--p           pre-test each \$url with your own UserAgent - this seems to be the only way to 
-	     fetch errors without dying!  
+-d           Debug mode: print excessive information to <STDOUT> 
 
 -h           Print this message
 
@@ -113,6 +114,7 @@ if ($opt_h) {
 }
 
 my $logfile = $opt_l ? $opt_l : $DEFAULTLOG;
+my $logfiledump = "$logfile.dump";  ## name of the dumpfile - will be derived from logfilename
 my $url = $opt_u ? $opt_u : $DEFAULTURL;
 
 if ($opt_d) {
@@ -126,6 +128,7 @@ if ($opt_d) {
 my $fhi;
 my $fho; 
 my $fhlog;
+my $fhlogdump;
 
 if ($opt_i) {
   open($fhi, "<:encoding(utf-8)", $opt_i);
@@ -138,6 +141,7 @@ if ($opt_o) {
 }
 
 open($fhlog, '>', $logfile);
+open($fhlogdump, '>', $logfiledump);
 
 ### initialize 
 my $store      = RDF::Trine::Store::Memory->new();
@@ -160,17 +164,35 @@ my $response;
 if ($opt_i) {
     $response = $parser->parse_file_into_model( $base_uri, $fhi, $model );
 } else {
-    my $error = "";
-    if ($opt_p) {
-       print "Fetching from url: $url ...\n";
-       $error = DateRDFUtils::pre_test_url_for_error($url);
-    }
-    if ($error) {
-       ### TODO: write info to logfile
-       die "INITIAL HTTP FAILED for: $url\t$error\n";
-    } else {
-       $response = $parser->parse_url_into_model( $url, $model, content_cb => \&DateRDFUtils::content_callback );
-    }
+#    if ($opt_p) {
+#       print "Fetching from url: $url ...\n";
+#       $error = DateRDFUtils::pre_test_url_for_error($url);
+#    }
+#    if ($error) {
+#       ### TODO: write info to logfile
+#       die "INITIAL HTTP FAILED for: $url\t$error\n";
+#    } else {
+#       $response = $parser->parse_url_into_model( $url, $model, content_cb => \&DateRDFUtils::content_callback );
+#    }
+
+      
+    ## call parse_url_into_model() in a eval-block to catch HTTP exceptions!
+    ## cf.  https://perlmaven.com/fatal-errors-in-external-modules
+    eval {
+	     # code that might throw exception
+	     $response = $parser->parse_url_into_model( $url, $model, content_cb => \&DateRDFUtils::content_callback );
+	     1;  # always return true to indicate success
+	}
+	or do {
+	    # this block executes if eval did not return true (becuse of an exception)
+	 
+	    # save the exception and use 'Unknown failure' if the content of $@ was already
+	    # removed
+	    my $error = $@ || 'Unknown failure';
+	    # report the exception and do something about it
+          ### TODO: write info to logfile
+          die "INITIAL HTTP FAILED for: $url\t$error\n";
+	};
 }
 
 ## for debug
@@ -181,15 +203,15 @@ if ($opt_d && !$fhi) {
 }
 
 ## almost the whole logic is packed into THIS function
-## add_triples_from_external_sameAs ( $model, $sameas, $filter, $predstoadd, $pretestURL, $logtag, $opt_d, $log ) 
+## add_triples_from_external_sameAs ( $model, $sameas, $filter, $predstoadd, $logtag, $opt_d, $log ) 
 ## call it twice: 
 ## The first run will search for skos:exactMatch on dbpedia and fetch the appropriate triples from there
 ## these also include owl:sameAs for wikidata 
 my $log = {}; 
 ## 1st run: dbpedia
-DateRDFUtils::add_triples_from_external_sameAs ( $model, $parser, $skos_exactmatch, 'http://dbpedia.org' , $checkinDBPedia, $opt_p, "DBPedia", $opt_d, $log ); 
+DateRDFUtils::add_triples_from_external_sameAs ( $model, $parser, $skos_exactmatch, 'http://dbpedia.org' , $checkinDBPedia, "01_DBPedia", $opt_d, $log ); 
 ## 2nd run: wikidata
-DateRDFUtils::add_triples_from_external_sameAs ( $model, $parser, $owl_sameas, '//www.wikidata.org' , $checkinWikidata, $opt_p, "Wikidata", $opt_d, $log ); 
+DateRDFUtils::add_triples_from_external_sameAs ( $model, $parser, $owl_sameas, '//www.wikidata.org' , $checkinWikidata, "02_Wikidata", $opt_d, $log ); 
 
 ##### serialize the model to either outfile or to standard-output
 ## the only way that worked: explicitely decode UTF-8 and write to a 'binary' stream 
@@ -205,18 +227,20 @@ if ($fho) {
 	print $outstring;
 }
 
+
+if ($fhlogdump) { 
+  print $fhlogdump Dumper $log; 
+}
+
 if ($fhlog) { 
-
-  print $fhlog Dumper $log; 
-
-  DateRDFUtils::render_loghash_as_csv($log);
-
+  print $fhlog DateRDFUtils::render_loghash_as_csv($log);
 }
 
 ## close all open files
 if ($fhi)   { close($fhi); }
 if ($fho)   { close($fho); }
 if ($fhlog) { close($fhlog); }
+if ($fhlogdump) { close($fhlogdump); }
 
 ## ======================= END MAIN ==============================
 

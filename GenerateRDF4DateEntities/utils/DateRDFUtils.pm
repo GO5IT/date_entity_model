@@ -34,7 +34,7 @@ our $MEDIATYPERDFXML = 'application/rdf+xml';
 # my $pred = RDF::Trine::Node::Resource->new('http://xmlns.com/foaf/0.1/name');
  
 ############## NAMESPACES: it is important that all NAMESPACE-Prefixes are managed here: 
-############## they then can be used used for RDF::Trine::Serializer
+############## they then can be used by RDF::Trine::Serializer
 our $namespacehash = {
       dc => 'http://purl.org/dc/elements/',
 	dcterms => 'http://purl.org/dc/terms/',
@@ -60,6 +60,7 @@ foreach my $prefix (keys %$DateRDFUtils::namespacehash) {
 
 ###########################################################
 ### create my own $useragent used for pre-testing urls
+#######  right now this is not used anymore... 
 our $useragent = LWP::UserAgent->new(
            protocols_allowed => [ 'http', 'https' ] 
 );
@@ -68,7 +69,7 @@ our $useragent = LWP::UserAgent->new(
   $useragent->default_header('Accept-Language' => "en");
   $useragent->default_header('Accept' => $DateRDFUtils::MEDIATYPERDFXML );
 
-## add_triples_from_external_sameAs ( $model, $parser, $sameas, $filter, $predstoadd, $pretestURL, $logtag, $opt_d, $log ) 
+## add_triples_from_external_sameAs ( $model, $parser, $sameas, $filter, $predstoadd, $logtag, $opt_d, $log ) 
 ##
 ## 1) in $model: look for skos:exactMatch or owl:sameAs pointing to external URL
 ## 2) retrieve data from external URL
@@ -81,10 +82,7 @@ our $useragent = LWP::UserAgent->new(
 ## filter         A string used for further filtering down the statements found by searching for $sameas
 ##	            e.g. "http://dbpedia.org" 
 ## predstoadd     A arrayref enlisting all the predicates to be added;
-##	            iff empty arrayref is added: add ALL predicates
-## pretestURL	flag if a separate HTTP-GET will be called on external URLs:
-##                this is the only way to detect and handle HTTP-Errors ;-(
-##			On the other hand it doubles the number of calls :-(             
+##	            iff empty arrayref is added: add ALL predicates           
 ## logtag         A string which is just used in the supply a tag which is used in the print-outs of the log. E.g. "DBpedia" 
 ## opt_d          Debug flag
 ## log            A logging-object : a hashref  for collecting log-info (NOT YET USED !)
@@ -94,7 +92,6 @@ sub add_triples_from_external_sameAs {
    my $sameas     = shift;   
    my $filter     = shift;   
    my $predstoadd = shift; 
-   my $pretestURL = shift; 
    my $logtag     = shift; 
    my $opt_d      = shift;   
    my $log        = shift;
@@ -113,19 +110,19 @@ sub add_triples_from_external_sameAs {
    SUBJECT: foreach my $subject (@subjects) { 
        print "$logtag\t==== subject: $subject ====\n";
        ## intialize $log   
-       ## create a localhhash for storing info per subject. 
-       my $llog = { 
-                 'http_success' => "",
-		 'triple-actually_inserted' => "",
-                 'triple-selected' => "",
-                 'triple-subj' => ""
-       };
-     
+       ## create a local hash for storing info per subject. 
+#                 '1_error' => "",
+#                 '2_triple-subj'  => ""
+#                 '3_triple-selected' => "",
+#		     '4_triple-actually_inserted' => "",
+       my $llog = init_log_fields();
+
        if ( not defined ( $log->{ $subject->as_string }->{ $logtag }  ) ) { 
 		$log->{ $subject->as_string }->{ $logtag } = $llog;
        } else {
 	  $llog = $log->{ $subject->as_string }->{ $logtag } ;
        } 
+
        if ($modelsize_after) { $modelsize_before = $modelsize_after};
        my $iter = $model->get_statements($subject, $sameas, undef);       
        SAMEAS: while (my $st = $iter->next) {
@@ -140,24 +137,28 @@ sub add_triples_from_external_sameAs {
              next SAMEAS; 
           }
           ### fetch the linked stuff in separate temporal model
+          $llog->{'0_url_sameAs'}  = $obj->uri_value;
           my $localmodel  = RDF::Trine::Model->temporary_model();
           my $lresponse;
-          my $error = "";
-          if ($pretestURL) {
-              $error = pre_test_url_for_error($obj->uri_value, $useragent);
-          }
-          if ($error) {
-               ### TODO: write info to logfile
-               print "$logtag: PRE_TEST_URL: LEIDER FEHLGESCHLAGEN:\t" . $obj->uri_value . "\t$error\n";
-               $llog->{ http_success } = $error ;
-        
-               next SAMEAS;
-          }  else {
-                # parse_url_into_model ( $url, $model [, %args] )
-                # Retrieves the content from $url and attempts to parse the resulting RDF into $model 
-                # using a parser chosen by the associated content media type.
-                $lresponse = $parser->parse_url_into_model( $obj->uri_value, $localmodel, content_cb => \&content_callback );
-          }
+          ## call parse_url_into_model() in a eval-block to catch HTTP exceptions!
+          ## cf.  https://perlmaven.com/fatal-errors-in-external-modules
+          eval {
+		     # code that might throw exception
+		     $lresponse = $parser->parse_url_into_model( $obj->uri_value, $localmodel, content_cb => \&content_callback );
+                 print "$logtag: parse_url_into_model() SUCCESS:\t" . $obj->uri_value . "\n";
+		     1;  # always return true to indicate success
+		}
+		or do {
+		    # this block executes if eval did not return true (becuse of an exception)
+		 
+		    # save the exception and use 'Unknown failure' if the content of $@ was already
+		    # removed
+		    my $error = $@ || 'Unknown failure';
+		    # report the exception and do something about it
+		    print "$logtag: parse_url_into_model() FAILED:\t" . $obj->uri_value . "\t$error\n";
+		    $llog->{ '1_error' } .= "|$error|" ;       
+		    next SAMEAS;   
+		};
           ### now extract ALL relevant triples for localmodel        
           print "\nSTATS\t$logtag\tNumber of RDF - statements in LOCAL model: " . $localmodel->size . "\n" if ($opt_d); 
           my $localiter = $localmodel->get_statements(undef, undef, undef);
@@ -197,48 +198,64 @@ sub add_triples_from_external_sameAs {
            $modelsize_after = $model->size;
            my $actually_inserted = $modelsize_after - $modelsize_before;
            print "STATS\t$logtag\t$subject\ttriple-total:$triplecount_total\ttriple-subj:$triplecount_subj\tselected:$triplecount_selected\n" if ($opt_d); 
-           print "STATS\t$logtag\t$subject\tactually inserted: $actually_inserted\n" if ($opt_d); 
-
-           $llog->{ 'triple-subj' } = $triplecount_subj;
-           $llog->{ 'triple-selected' } = $triplecount_selected;
-           $llog->{ 'triple-actually_inserted' } = $actually_inserted;
+           print "STATS\t$logtag\t$subject\tactually inserted: $actually_inserted\n" if ($opt_d);           
+           $llog->{ '2_triple-subj' }     = $triplecount_subj;
+           $llog->{ '3_triple-selected' } = $triplecount_selected;
+           $llog->{ '4_triple-actually_inserted' } = $actually_inserted;
           } # SAMEAS  
   } # SUBJECT
  print "STATS\t$logtag\tNumber of RDF - statements in model AFTER: " . $model->size . "\n";
 }
 
-## pre_test_url_for_error ($url, $useragent) 
-## uses $useragent to test $url: returns FALSE (empty string) if successful and 
-## the HTTP-Error otherwise.
-## This is required because that's the only way to catch errors 
-## from the HTTP-call: RDF::Trine::Parser->parse_url_into_mode just dies 
-## when there is an error.
-## If $useragent is not supplied, then $DateRDFUtils::useragent is used as default
-sub pre_test_url_for_error {
-  my $url = shift;
-  my $ua  = shift;
-  if ( ! $ua ) {
-    $ua = $DateRDFUtils::useragent;
-  }
-  #  print "== testing $url ...\n";
-  #   print "==ua==\n";
-  #   print Data::Dumper::Dumper($ua);
-  my $response = $ua->get($url);
-  #  print "== tested $url ...\n";
-  if ($response->is_success) {
-    return "";
-  }  else { 
-    # print "== FAILED: " . $response->status_line . "\n";
-    return $response->status_line;
-  }
-}
+########### NOT REQUIRED ANYMORE beacause we now are catching EXCEPTIONS properly !!!!
+
+#### pre_test_url_for_error ($url, $useragent) 
+#### uses $useragent to test $url: returns FALSE (empty string) if successful and 
+#### the HTTP-Error otherwise.
+#### This is required because that's the only way to catch errors 
+#### from the HTTP-call: RDF::Trine::Parser->parse_url_into_mode just dies 
+#### when there is an error.
+#### If $useragent is not supplied, then $DateRDFUtils::useragent is used as default
+##sub pre_test_url_for_error {
+##  my $url = shift;
+##  my $ua  = shift;
+##  if ( ! $ua ) {
+##    $ua = $DateRDFUtils::useragent;
+##  }
+##  #  print "== testing $url ...\n";
+##  #   print "==ua==\n";
+##  #   print Data::Dumper::Dumper($ua);
+##  my $response = $ua->get($url);
+##  #  print "== tested $url ...\n";
+##  if ($response->is_success) {
+##    return "";
+##  }  else { 
+##    # print "== FAILED: " . $response->status_line . "\n";
+##    return $response->status_line;
+##  }
+##}
+
+##############################  LOGGING #######################
+
+
+## initialize a hash for local information on each _external_ link
+sub init_log_fields { 
+    my $loghash =  { 
+                 '0_url_sameAs' => "",
+                 '1_error' => "",
+                 '2_triple-subj'  => "",
+                 '3_triple-selected' => "",
+		     '4_triple-actually_inserted' => "",
+                };
+    return $loghash;
+} 
 
 ### render the log-hash as csv 
 sub render_loghash_as_csv {
    my $log = shift;
-   my @result; 
+   my @csv; 
    my @line = ();
-   print join("\t", "subject", "level1", "x", "y", "z", "...", "\n");
+   push(@csv, join("\t", "subject", "level1", "x", "y", "z", "..."));
    foreach my $s (sort keys %$log) {
        push (@line, $s);
        foreach my $level1 ( sort keys %{$log->{$s}} ) {
@@ -248,8 +265,9 @@ sub render_loghash_as_csv {
               push(@line, $log->{$s}->{$level1}->{$level2});
           }
        }
-       print join("\t", @line, "\n");
-   }
+       push(@csv, join("\t", @line));
+   } 
+   return(join("\n", @csv));
 }
 
 #parse_url_into_model ( $url, $model [, %args] )
