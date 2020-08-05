@@ -86,6 +86,7 @@ our $useragent = LWP::UserAgent->new(
 ## logtag         A string which is just used in the supply a tag which is used in the print-outs of the log. E.g. "DBpedia" 
 ## opt_d          Debug flag
 ## log            A logging-object : a hashref  for collecting log-info (NOT YET USED !)
+## opt_S          Skip number of subjects (for testing)
 ## opt_L          Limit number of subjects (for testing)
 sub add_triples_from_external_sameAs {
    my $model      = shift; 
@@ -96,6 +97,7 @@ sub add_triples_from_external_sameAs {
    my $logtag     = shift; 
    my $opt_d      = shift;   
    my $log        = shift;
+   my $opt_S      = shift;
    my $opt_L	= shift;
 
    my $modelsize_before = 0;
@@ -112,9 +114,12 @@ sub add_triples_from_external_sameAs {
    print "STATS\t$logtag\tNumber of SUBJECTS in model BEFORE: " . $number_of_subjects . "\n";
    my $subjectcount = 0;
 
+   ## if skip AND limit: add skip to limit!
+   if ($opt_L) { $opt_L += $opt_S };
    SUBJECT: foreach my $subject (@subjects) { 
        $subjectcount++;
-       last SUBJECT if ($opt_L && $subjectcount > $opt_L); 
+       next SUBJECT if ($opt_S && $subjectcount <= $opt_S); ## skip
+       last SUBJECT if ($opt_L && $subjectcount > $opt_L);  ## limit
        print "$logtag\t==== subject $subjectcount / $number_of_subjects : $subject ====\n";
        ## intialize $log   
        ## create a local hash for storing info per subject. 
@@ -271,7 +276,7 @@ sub render_loghash_as_csv {
    my $log = shift;
    my @csv; 
    my @line = ();
-   push(@csv, join("\t", "subject", "level1", "x", "y", "z", "..."));
+   # push(@csv, join("\t", "subject", "level1", "x", "y", "z", "..."));
    foreach my $s (sort keys %$log) {
        push (@line, $s);
        foreach my $level1 ( sort keys %{$log->{$s}} ) {

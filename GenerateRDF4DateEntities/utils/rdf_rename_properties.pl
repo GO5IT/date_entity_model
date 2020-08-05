@@ -13,7 +13,7 @@ use Encode;
 
 use utf8;
 
-my $DEFAULTLOG="add_existing.log";
+my $DEFAULTLOG="rdf_rename_properties.log";
 my $MEDIATYPE='application/rdf+xml';
 my $BASEURI="";
 
