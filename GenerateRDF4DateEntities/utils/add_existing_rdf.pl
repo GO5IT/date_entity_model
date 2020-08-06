@@ -43,13 +43,13 @@ my $MEDIATYPE='application/rdf+xml';
 
 
 ### create useful predicate-names
+## Specify predicates to fetch from DBpedia in the two blocks below
 my $rdfs_label        = $DateRDFUtils::nsobjects->{'rdfs'}->label;
 my $skos_exactmatch   = $DateRDFUtils::nsobjects->{'skos'}->exactMatch;
 my $owl_sameas        = $DateRDFUtils::nsobjects->{'owl'}->sameAs;
 my $dbo_abstract      = $DateRDFUtils::nsobjects->{'dbo'}->abstract;
 my $foaf_primarytopic = $DateRDFUtils::nsobjects->{'foaf'}->primaryTopic;
 
-## which predicates fetch from DBpedia
 my $checkinDBPedia  = [  
       $owl_sameas,
 	 $rdfs_label,
@@ -58,7 +58,7 @@ my $checkinDBPedia  = [
  ];
 
 
-## which predicates fetch from wikidata
+## Specify below which predicates to fetch from wikidata
 my $checkinWikidata = [  
       $rdfs_label, 
 	$DateRDFUtils::nsobjects->{'wdt'}->P910, 
@@ -219,6 +219,8 @@ my $log = {};
 DateRDFUtils::add_triples_from_external_sameAs ( $model, $parser, $skos_exactmatch, 'http://dbpedia.org' , $checkinDBPedia, "01_DBPedia", $opt_d, $log, $opt_S, $opt_L ); 
 ## 2nd run: wikidata
 DateRDFUtils::add_triples_from_external_sameAs ( $model, $parser, $owl_sameas, '//www.wikidata.org' , $checkinWikidata, "02_Wikidata", $opt_d, $log, $opt_S, $opt_L ); 
+## 3rd run (ie. 3rd traversal of websites) onward can be added below, using the same line above and change the URL
+
 
 ##### serialize the model to either outfile or to standard-output
 ## the only way that worked: explicitely decode UTF-8 and write to a 'binary' stream 
