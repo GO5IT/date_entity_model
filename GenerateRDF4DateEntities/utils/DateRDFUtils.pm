@@ -158,11 +158,11 @@ sub add_triples_from_external_sameAs {
           eval {
 		     # code that might throw exception
 		     $lresponse = $parser->parse_url_into_model( $obj->uri_value, $localmodel, content_cb => \&content_callback );
-                 print "$logtag:\t\tparse_url_into_model() SUCCESS:\t" . $obj->uri_value . "\n";
+                     print "$logtag:\t\tparse_url_into_model() SUCCESS:\t" . $obj->uri_value . "\n";
 		     1;  # always return true to indicate success
 		}
 		or do {
-		    # this block executes if eval did not return true (becuse of an exception)
+		    # this block executes if eval did not return true (because of an exception)
 		 
 		    # save the exception and use 'Unknown failure' if the content of $@ was already
 		    # removed
@@ -203,8 +203,10 @@ sub add_triples_from_external_sameAs {
               if ( not(@$predstoadd) or grep { $lpred->equal($_) } @$predstoadd ) {
                    $triplecount_selected++;
                    print "$logtag\tHIT:\t\t$lpred\t$lobj\n" if ($opt_d);
-	             ## add triple to GLOBAL model
+	           ## add triple to GLOBAL model
                    $model->add_statement( RDF::Trine::Statement->new($subject, $lpred, $lobj) );
+              } else {
+		print "$logtag\tNO hit:\t\t$lpred\t$lobj\n" if ($opt_d);
               }
            } # TRIPLE
            ### statistics:
