@@ -277,9 +277,10 @@ sub init_log_fields {
 sub render_loghash_as_csv {
    my $log = shift;
    my @csv; 
-   my @line = ();
+   # my @line = ();
    # push(@csv, join("\t", "subject", "level1", "x", "y", "z", "..."));
    foreach my $s (sort keys %$log) {
+       my @line = ();
        push (@line, $s);
        foreach my $level1 ( sort keys %{$log->{$s}} ) {
           push (@line, "$level1:");
