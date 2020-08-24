@@ -48,7 +48,7 @@ my $rdfs_label        = $DateRDFUtils::nsobjects->{'rdfs'}->label;
 my $skos_exactmatch   = $DateRDFUtils::nsobjects->{'skos'}->exactMatch;
 my $owl_sameas        = $DateRDFUtils::nsobjects->{'owl'}->sameAs;
 my $dbo_abstract      = $DateRDFUtils::nsobjects->{'dbo'}->abstract;
-my $foaf_primarytopic = $DateRDFUtils::nsobjects->{'foaf'}->primaryTopic;
+my $foaf_primarytopic = $DateRDFUtils::nsobjects->{'foaf'}->isPrimaryTopicOf;
 
 my $checkinDBPedia  = [  
       $owl_sameas,

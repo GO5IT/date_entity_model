@@ -14,6 +14,9 @@ my $MEDIATYPEHTML = 'text/html';
 my $dburlorig='http://dbpedia.org/resource/AD_2';
 my $dbredirect='http://dbpedia.org/page/2'; 
 
+my $dbrdf='http://dbpedia.org/data/2.rdf';
+
+
 our ($opt_h,$opt_r,$opt_a, $opt_u);
 getopts('hr:a:u:');
 
@@ -31,6 +34,8 @@ USAGE: $0 (-h) -a ACCEPT -r MAXREDIRECT -u URL
 -u  URL      -> "orig" ($dburlorig)
                 or 
                 "redirect" ($dbredirect) 
+                or 
+                "rdf" ( $dbrdf )
 
 -r  MAXDDIRECT -> 0, 1, 2 ...
 
@@ -57,7 +62,10 @@ if ($opt_u =~ /^or/) {
   $url = $dburlorig;
 } elsif ($opt_u =~ /^re/) {
   $url = $dbredirect;
-} else {
+}  elsif ($opt_u =~ /^rdf/) {
+  $url = $dbrdf;
+}
+else {
   die "-u is not detected!\n";
 }
 

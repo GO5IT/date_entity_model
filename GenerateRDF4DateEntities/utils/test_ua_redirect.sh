@@ -3,7 +3,8 @@
 mkdir -p TESTREDIRECT;
 #rm TESTREDIRECT/*
 
-for u in  orig ; do 
+# for u in  orig redirect rdf ; do 
+for u in  rdf ; do 
  for a in html rdf; do
  for r in 0 1 2 3; do
        echo -e "u=$u\ta=$a\tr=$r ...";
@@ -20,3 +21,4 @@ wc -l TESTREDIRECT/*
 
 wget --header='Accept:application/rdf+xml' -O TESTREDIRECT/wget_dbpediaORIG_AD2.rdf 'http://dbpedia.org/resource/AD_2'
 wget --header='Accept:application/rdf+xml' -O TESTREDIRECT/wget_dbpediaREDIRECT_page2.rdf 'http://dbpedia.org/page/2'
+wget --header='Accept:application/rdf+xml' -O TESTREDIRECT/wget_dbpediaRDF_page2.rdf 'http://dbpedia.org/data/2.rdf'

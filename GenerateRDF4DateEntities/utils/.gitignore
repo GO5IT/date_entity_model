@@ -3,3 +3,8 @@ generated_data
 *.log
 reusableCode
 MonthDayUnitOfTime
+*.csv
+*.html
+*.dump
+TESTREDIRECT
+
