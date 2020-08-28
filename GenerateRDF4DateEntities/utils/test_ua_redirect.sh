@@ -20,5 +20,15 @@ wc -l TESTREDIRECT/*
 #wird im browser redirectet zu: http://dbpedia.org/page/2
 
 wget --header='Accept:application/rdf+xml' -O TESTREDIRECT/wget_dbpediaORIG_AD2.rdf 'http://dbpedia.org/resource/AD_2'
+
+wget --header='Accept:application/rdf+xml' -O TESTREDIRECT/wget_dbpediaORIG_AD1965.rdf 'http://dbpedia.org/resource/AD_1969'
+
+
 wget --header='Accept:application/rdf+xml' -O TESTREDIRECT/wget_dbpediaREDIRECT_page2.rdf 'http://dbpedia.org/page/2'
 wget --header='Accept:application/rdf+xml' -O TESTREDIRECT/wget_dbpediaRDF_page2.rdf 'http://dbpedia.org/data/2.rdf'
+
+wget --header='Accept:application/rdf+xml' -O TESTREDIRECT/wget_dbpediaRESOURCE2.rdf 'http://dbpedia.org/resource/2'
+
+## 222 
+wget --header='Accept:application/rdf+xml' -O TESTREDIRECT/wget_dbpediaRESOURCE333.rdf 'http://dbpedia.org/resource/333'
+

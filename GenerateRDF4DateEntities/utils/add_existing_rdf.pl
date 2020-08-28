@@ -209,16 +209,39 @@ if ($opt_d && !$fhi) {
   exit;
 }
 
+
+
 ## almost the whole logic is packed into THIS function
-## add_triples_from_external_sameAs ( $model, $sameas, $filter, $predstoadd, $logtag, $opt_d, $log ) 
+## add_triples_from_external_sameAs ( $model, $parser, $sameas, $filter, $predstoadd, $tweak_urls, $tweak_subj, $tweak_pred, $tweak_obj $logtag, $opt_d, $log, $opt_S, $opt_L ) 
 ## call it twice: 
 ## The first run will search for skos:exactMatch on dbpedia and fetch the appropriate triples from there
 ## these also include owl:sameAs for wikidata 
+
+
+## Arguments:
+## model	      A RDF::Trine::Model
+## parser         A RDF::Trine::Parser
+## sameas	      Predicate to use for determining "sameness" - e.g. skos:axactMatch or owl:sameAs
+## filter         A string used for further filtering down the statements found by searching for $sameas
+##	            e.g. "http://dbpedia.org" 
+## predstoadd     A arrayref enlisting all the predicates to be added;
+##	            iff empty arrayref is added: add ALL predicates 
+## tweak_urls 	A hashref enlisting PATTERN => SUBSTITUTION pairs  which are applied to a URL before fetching it
+## tweak_subj     A hashref enlisting PATTERN => SUBSTITUTION pairs  which are applied to a SUBJECTS before adding them to the TripleStore
+## tweak_pred     A hashref enlisting PATTERN => SUBSTITUTION pairs  which are applied to a PREDICAT-values before adding them to the TripleStore
+## tweak_obj      A hashref enlisting PATTERN => SUBSTITUTION pairs  which are applied to a OBJECT-values   before adding them to the TripleStore          
+## logtag         A string which is just used in the supply a tag which is used in the print-outs of the log. E.g. "DBpedia" 
+## opt_d          Debug flag
+## log            A logging-object : a hashref  for collecting log-info (NOT YET USED !)
+## opt_S          Skip number of subjects (for testing)
+## opt_L          Limit number of subjects (for testing)
+
 my $log = {}; 
 ## 1st run: dbpedia
-DateRDFUtils::add_triples_from_external_sameAs ( $model, $parser, $skos_exactmatch, 'http://dbpedia.org' , $checkinDBPedia, "01_DBPedia", $opt_d, $log, $opt_S, $opt_L ); 
+DateRDFUtils::add_triples_from_external_sameAs ( $model, $parser, $skos_exactmatch, 'http://dbpedia.org' , $checkinDBPedia, "01_DBPedia", $DateRDFUtils::tweak_urls_dbpedia, {}, {}, {}, $opt_d, $log, $opt_S, $opt_L ); 
 ## 2nd run: wikidata
-DateRDFUtils::add_triples_from_external_sameAs ( $model, $parser, $owl_sameas, '//www.wikidata.org' , $checkinWikidata, "02_Wikidata", $opt_d, $log, $opt_S, $opt_L ); 
+DateRDFUtils::add_triples_from_external_sameAs ( $model, $parser, $owl_sameas, '//www.wikidata.org' , $checkinWikidata, "02_Wikidata", {}, {}, {}, $DateRDFUtils::tweak_obj_wdata, $opt_d, $log, $opt_S, $opt_L );
+ 
 ## 3rd run (ie. 3rd traversal of websites) onward can be added below, using the same line above and change the URL
 
 

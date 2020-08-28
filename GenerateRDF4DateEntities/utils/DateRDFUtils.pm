@@ -52,11 +52,46 @@ our $namespacehash = {
 };
 
 ## for each entry in $namespacehash: automatically create namespace objects trine-namespaces ... 
-## from this predicate names can be derived. 
+## from this, predicate names can be derived. 
 our $nsobjects={};
 foreach my $prefix (keys %$DateRDFUtils::namespacehash) {
    $nsobjects->{$prefix} = RDF::Trine::Namespace->new($DateRDFUtils::namespacehash->{$prefix});
 }  
+
+###########################################################
+## substitutions used for tweaking 
+## because it seems impossible to store "normal" substitution patterns like "s/PATTERN/SUBSTITUTION/" in a variable 
+## we had to resort to storing it in a hash as "{ PATTERN => SUBSTITUTION }";
+
+#### IMPORTANT: the SUBSTITUTION _must_ be written with double-quotes within single quotes, 
+#### otherwise  s/PATTERN/SUBSTITUTION/ee will not work properly. 
+#### i.e. '"subst"' . This is a feature, not a bug!
+
+#### Format of the hash:   <REGEX-PATTEN> => <SUBSTITUTION> 
+## case 1: AD_1 to AD_101 
+
+our $tweak_urls_dbpedia = { 
+	qr{http://dbpedia.org/resource/AD_(\d{1,2}|101)$} => '"http://dbpedia.org/resource/$1"',
+};
+
+## $tweak object has a <PREDICATE> additional control-option : 
+## <PREDICATE_AS_STRING> => {  <REGPATTERN1> =>  <SUBST1>, <REGEXPATTERN2> => <SUBST2> ... }
+## for patterns which are are to be applied on ALL predicates use "*" as <PREDICATE> 
+
+### note: the keys in the hash must be strings, not objects. 
+### threrfore we filled in the property-URL as string.
+### instead of:
+###       'http://www.wikidata.org/prop/direct-normalized/P244' 
+### we could write:
+###        $DateRDFUtils::nsobjects->{'wdtn'}->P244->uri_value
+### which would produce just the same URL-string!
+
+our $tweak_obj_wdata = { 
+    'http://www.wikidata.org/prop/direct-normalized/P244'  => {
+              qr{/authorities/names/} => '"/authorities/subjects/"',
+   },
+};
+
 
 ###########################################################
 ### create my own $useragent used for pre-testing urls
@@ -69,7 +104,7 @@ our $useragent = LWP::UserAgent->new(
   $useragent->default_header('Accept-Language' => "en");
   $useragent->default_header('Accept' => $DateRDFUtils::MEDIATYPERDFXML );
 
-## add_triples_from_external_sameAs ( $model, $parser, $sameas, $filter, $predstoadd, $logtag, $opt_d, $log ) 
+## add_triples_from_external_sameAs ( $model, $parser, $sameas, $filter, $predstoadd, $tweak_urls, $tweak_subj, $tweak_pred, $tweak_obj $logtag, $opt_d, $log, $opt_S, $opt_L ) 
 ##
 ## 1) in $model: look for skos:exactMatch or owl:sameAs pointing to external URL
 ## 2) retrieve data from external URL
@@ -82,7 +117,11 @@ our $useragent = LWP::UserAgent->new(
 ## filter         A string used for further filtering down the statements found by searching for $sameas
 ##	            e.g. "http://dbpedia.org" 
 ## predstoadd     A arrayref enlisting all the predicates to be added;
-##	            iff empty arrayref is added: add ALL predicates           
+##	            iff empty arrayref is added: add ALL predicates 
+## tweak_urls 	A hashref enlisting PATTERN => SUBSTITUTION pairs  which are applied to a URL before fetching it
+## tweak_subj     A hashref enlisting PATTERN => SUBSTITUTION pairs  which are applied to a SUBJECTS before adding them to the TripleStore
+## tweak_pred     A hashref enlisting PATTERN => SUBSTITUTION pairs  which are applied to a PREDICAT-values before adding them to the TripleStore
+## tweak_obj      A hashref enlisting PATTERN => SUBSTITUTION pairs  which are applied to a OBJECT-values   before adding them to the TripleStore          
 ## logtag         A string which is just used in the supply a tag which is used in the print-outs of the log. E.g. "DBpedia" 
 ## opt_d          Debug flag
 ## log            A logging-object : a hashref  for collecting log-info (NOT YET USED !)
@@ -94,7 +133,11 @@ sub add_triples_from_external_sameAs {
    my $sameas     = shift;   
    my $filter     = shift;   
    my $predstoadd = shift; 
-   my $logtag     = shift; 
+   my $logtag     = shift;
+   my $tweak_urls = shift;
+   my $tweak_subj = shift;
+   my $tweak_pred = shift;
+   my $tweak_obj  = shift; 
    my $opt_d      = shift;   
    my $log        = shift;
    my $opt_S      = shift;
@@ -123,10 +166,10 @@ sub add_triples_from_external_sameAs {
        print "$logtag\t==== subject $subjectcount / $number_of_subjects : $subject ====\n";
        ## intialize $log   
        ## create a local hash for storing info per subject. 
-#                 '1_error' => "",
-#                 '2_triple-subj'  => ""
-#                 '3_triple-selected' => "",
-#		     '4_triple-actually_inserted' => "",
+	#                 '1_error' => "",
+	#                 '2_triple-subj'  => ""
+	#                 '3_triple-selected' => "",
+	#		     '4_triple-actually_inserted' => "",
        my $llog = init_log_fields();
 
        if ( not defined ( $log->{ $subject->as_string }->{ $logtag }  ) ) { 
@@ -149,6 +192,14 @@ sub add_triples_from_external_sameAs {
              print "\t$logtag: neglected as external reference:\t$pred\t$obj\n" if ($opt_d); 
              next SAMEAS; 
           }
+          ### tweak the url if necessary 
+          my $tweaked_obj_uri = $obj->uri_value;
+          ## important: apply_tweaks requires a REF ! 
+          my $was_tweaked = apply_tweaks( \$tweaked_obj_uri, $tweak_urls );
+	    if ( $opt_d && $was_tweaked ) {
+		print join("\t", "$logtag:", "URI was tweaked from:", $obj->uri_value, "to", $tweaked_obj_uri, "\n");
+	    }
+
           ### fetch the linked stuff in separate temporal model
           $llog->{'0_url_sameAs'}  = $obj->uri_value;
           my $localmodel  = RDF::Trine::Model->temporary_model();
@@ -157,8 +208,8 @@ sub add_triples_from_external_sameAs {
           ## cf.  https://perlmaven.com/fatal-errors-in-external-modules
           eval {
 		     # code that might throw exception
-		     $lresponse = $parser->parse_url_into_model( $obj->uri_value, $localmodel, content_cb => \&content_callback );
-                     print "$logtag:\t\tparse_url_into_model() SUCCESS:\t" . $obj->uri_value . "\n";
+		     $lresponse = $parser->parse_url_into_model( $tweaked_obj_uri, $localmodel, content_cb => \&content_callback );
+                     print "$logtag:\t\tparse_url_into_model() SUCCESS:\t" . $tweaked_obj_uri . "\n";
 		     1;  # always return true to indicate success
 		}
 		or do {
@@ -168,7 +219,7 @@ sub add_triples_from_external_sameAs {
 		    # removed
 		    my $error = $@ || 'Unknown failure';
 		    # report the exception and do something about it
-		    print "$logtag:\t\tparse_url_into_model() FAILED:\t" . $obj->uri_value . "\t$error\n";
+		    print "$logtag:\t\tparse_url_into_model() FAILED:\t" . $tweaked_obj_uri . "\t$error\n";
 		    $llog->{ '1_error' } .= "|$error|" ;       
 		    next SAMEAS;   
 		};
@@ -193,8 +244,8 @@ sub add_triples_from_external_sameAs {
               if ( ! $lsub->equal($obj) ) {
                  print "\t$logtag\tLSUBJECT does not match: $lsub  -> ignored\n" if ($opt_d); 
                  next TRIPLE;
-		  } else {
-			print "\n$logtag\tLSUBJECT MATCHES: $lsub\n" if ($opt_d);
+	      } else {
+		 print "\n$logtag\tLSUBJECT MATCHES: $lsub\n" if ($opt_d);
               }
             
               $triplecount_subj++;
@@ -203,7 +254,13 @@ sub add_triples_from_external_sameAs {
               if ( not(@$predstoadd) or grep { $lpred->equal($_) } @$predstoadd ) {
                    $triplecount_selected++;
                    print "$logtag\tHIT:\t\t$lpred\t$lobj\n" if ($opt_d);
-	           ## add triple to GLOBAL model
+
+                   ## check if $lpred is in $tweak_obj - and tweak the object value if necessary!
+                   my $obj_was_tweaked = apply_tweak_obj( $lpred, \$lobj, $tweak_obj );
+                   if ( $opt_d && $obj_was_tweaked ) { print "\t$logtag\tobject was tweaked to: " . $lobj . "\n"; }
+
+	             ## add triple to GLOBAL model
+                    
                    $model->add_statement( RDF::Trine::Statement->new($subject, $lpred, $lobj) );
               } else {
 		print "$logtag\tNO hit:\t\t$lpred\t$lobj\n" if ($opt_d);
@@ -328,6 +385,61 @@ sub content_callback {
 
    return 1;
 } 
+
+### important: $x has to be passed in as reference!!!
+### $x will be changed in situ
+sub apply_tweaks {
+  my $xref      = shift; 
+  my $tweaks    = shift; 
+  my $was_tweaked = 0;
+  foreach my $pattern (keys %$tweaks) {
+       my $subs = $tweaks->{$pattern};
+       if (  $$xref =~ s/$pattern/$subs/ee ) { $was_tweaked = 1 }
+  }
+  return $was_tweaked;
+}
+
+
+### Attention: returns $obj 
+### has to take care whether $obj is a Resource or a Literal !!!
+sub apply_tweak_obj {
+   my $pred = shift;
+   my $obj  = shift; 
+   my $tweaks = shift; 
+   my $was_tweaked = 0;
+  
+   my $objstr;
+
+   if ( $$obj->is_resource ) { 
+      $objstr = $$obj->uri_value;
+   } elsif ( $$obj->is_literal ) {
+      $objstr = $$obj->as_string;
+   } else { 
+	return 0; 
+   }
+
+   foreach my $p (keys %$tweaks) {
+	if ( $pred->uri_value eq $p or $p eq '*' ) {
+         if ( apply_tweaks( \$objstr, $tweaks->{ $p } )  ) {
+           $was_tweaked = 1;
+         } 
+      }
+   }
+   ## iff there was a tweak: change $obj !
+   if ($was_tweaked) {
+
+	   if ($$obj->is_resource) { 
+	      $$obj = RDF::Trine::Node::Resource->new($objstr);
+	   } elsif ($$obj->is_literal) {
+	      $$obj = RDF::Trine::Node::Literal->new($objstr);
+	   } else { 
+		return 0;
+	   }
+	$$obj = RDF::Trine::Node::Resource->new($objstr);
+   } 
+  return $was_tweaked;
+}
+
 
 ###########################################################
 ###  Re-usable bits and pieces for Go's Date-to-RDF project
