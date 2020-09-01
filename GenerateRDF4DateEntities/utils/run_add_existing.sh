@@ -20,7 +20,7 @@ usage()
 {
 cat << EOF
 
-Usage: $0 (-d) (-S <SKIP_N>) (-L <LIMIT_M>)  <RDF-XML-FILE>
+Usage: $0  (-h) (-d) (-S <SKIP_N>) (-L <LIMIT_M>)  <RDF-XML-FILE>
 
 Run add_existing_rdf.pl on <RDF-XML-FILE>
 
@@ -32,6 +32,8 @@ OPTIONS:
                      "0" means: there is NO limit
 
 -d                   Debug mode
+
+-h                   Print this message
 
 EOF
 }
