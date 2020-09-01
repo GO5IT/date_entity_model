@@ -1,41 +1,95 @@
 #!/bin/bash
 
-set ue
+### LIMIT for testing: set to "0" for NO limit! 
+# S = Specify the number of triples to be skipped (RDF subject i.e. Date Entity) from the start of the file
+# L = Specify the number of triples to be processed
+## DEFAULT VALUES for L and S
+S="0"
+L="0"
 
-# Specify the input file (which will be untouched)
-#I="sample_year_japansearch_enriched.rdf"
-I="sample_year.rdf"
+## maximum size of log-file in MB 
+## iff it is bigger, it will be split!
+MAXSIZE=50
+
+## DEBUG option
+DEBUG="" 
+
+DAT=$(date +%F_%Hh%Mm)
+
+usage() 
+{
+cat << EOF
+
+Usage: $0 (-d) (-S <SKIP_N>) (-L <LIMIT_M>)  <RDF-XML-FILE>
+
+Run add_existing_rdf.pl on <RDF-XML-FILE>
+
+OPTIONS:
+
+-S  <SKIP_N>         Skip <SKIP_N> years before starting to process
+		
+-L  <LIMIT_M>        Limit processing to a total of <LIMIT_M> years
+                     "0" means: there is NO limit
+
+-d                   Debug mode
+
+EOF
+}
+
+while getopts "S:L:dh" OPTION; do
+        case $OPTION in      
+                S)
+                        S=$OPTARG       
+                        ;;
+                L)
+                        L=$OPTARG       
+                        ;;
+                d)
+                        DEBUG="-d"
+                        ;;
+                h) 
+                        usage
+                        exit 1
+                        ;;
+                \?)
+                        usage
+                        exit 1
+
+        esac
+done
+## remove all command-line options
+shift $(($OPTIND - 1))
+
+I=$1;
+
+if [[ ! -s $I ]]; then 
+   echo -e "\nInput not specified or not a file or empty: $I\n"; 
+   exit
+fi
+
 
 ## remove path
 IB=$(basename $I)
 
-### LIMIT for testing: set to "0" for NO limit! 
-# S = Specify the number of triples to be skipped (RDF subject i.e. Date Entity) from the start of the file
-# L = Specify the number of triples to be processed
-S="0"
-L="0"
-
-## DEBUG??
-DEBUG="-d" 
-
-DAT=$(date +%F_%Hh%Mm)
+logcsv="out_${DAT}_${S}_${L}_${IB}.csv"
+log="log_${DAT}_${S}_${L}_${IB}.txt"
 
 add_existing_rdf.pl $DEBUG -i $I \
                     -o out_${DAT}_${S}_${L}_${IB} \
-                    -l out_${DAT}_${S}_${L}_${IB}.csv \
-                    -L $L -S $S &> log_${DAT}_${S}_${L}_${IB}.txt
+                    -l $logcsv \
+                    -L $L -S $S &> $log
 
 
 ############ should not happen anymore 
-### if size of logfile exceeds maxsize (in MB ): split it!
-MAXSIZE=50
-actualsize=$(du -m "out_${DAT}_${S}_${L}_${IB}.csv" | cut -f 1)
+### iff size of logfile exceeds maxsize (in MB ): split it!
+
+actualsize=$(du -m "$logcsv" | cut -f 1)
 if [ $actualsize -gt $MAXSIZE ]; then
     echo "size of logfile is $actualsize MB i.e. it exceeds $MAXSIZE MB"
-    echo -e "\n## Because the log - csv is WAY too big: split it in chunks of 100MB each ...\n";
-    split --additional-suffix .csv -a 3 -d -C ${MAXSIZE}M out_${DAT}_${S}_${L}_${IB}.csv out_${DAT}_${S}_${L}_${IB}_ 
+    echo -e "\n## Because the log - csv is WAY too big: split it in chunks of ${MAXSIZE}M each ...\n";
+    split --additional-suffix .csv -a 3 -d -C ${MAXSIZE}M $logcsv out_${DAT}_${S}_${L}_${IB}_ 
 else
-    echo "size of logfile is under $MAXSIZE MB"
+    # echo "size of logfile is under $MAXSIZE MB"
 fi
 
  
