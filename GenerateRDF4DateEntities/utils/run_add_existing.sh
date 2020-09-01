@@ -89,7 +89,7 @@ if [ $actualsize -gt $MAXSIZE ]; then
     echo -e "\n## Because the log - csv is WAY too big: split it in chunks of ${MAXSIZE}M each ...\n";
     split --additional-suffix .csv -a 3 -d -C ${MAXSIZE}M $logcsv out_${DAT}_${S}_${L}_${IB}_ 
 else
-    # echo "size of logfile is under $MAXSIZE MB"
+    echo -e "\n## Size of logfile is smaller than MAXSIZE of $MAXSIZE MB; it does not require splitting\n"
 fi
 
  
