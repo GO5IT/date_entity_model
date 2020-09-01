@@ -92,7 +92,6 @@ our $tweak_obj_wdata = {
    },
 };
 
-
 ###########################################################
 ### create my own $useragent used for pre-testing urls
 #######  right now this is not used anymore... 
@@ -195,9 +194,14 @@ sub add_triples_from_external_sameAs {
           ### tweak the url if necessary 
           my $tweaked_obj_uri = $obj->uri_value;
           ## important: apply_tweaks requires a REF ! 
-          my $was_tweaked = apply_tweaks( \$tweaked_obj_uri, $tweak_urls );
-	    if ( $opt_d && $was_tweaked ) {
-		print join("\t", "$logtag:", "URI was tweaked from:", $obj->uri_value, "to", $tweaked_obj_uri, "\n");
+	    my $tweak_url_subj = ""; ## iff url is tweaked - we also need to use the tweaked url for testing SUBJECT 
+          my $url_was_tweaked = apply_tweaks( \$tweaked_obj_uri, $tweak_urls );
+
+	    if ( $url_was_tweaked ) {
+            if ($opt_d) {
+			print join("\t", "$logtag:", "URI was tweaked from:", $obj->uri_value, "to", $tweaked_obj_uri, "\n");
+            }
+            $tweak_url_subj = new RDF::Trine::Node::Resource( $tweaked_obj_uri );
 	    }
 
           ### fetch the linked stuff in separate temporal model
@@ -241,11 +245,11 @@ sub add_triples_from_external_sameAs {
 #     	           print "---\n";
 #              }
 
-              if ( ! $lsub->equal($obj) ) {
-                 print "\t$logtag\tLSUBJECT does not match: $lsub  -> ignored\n" if ($opt_d); 
-                 next TRIPLE;
-	      } else {
-		 print "\n$logtag\tLSUBJECT MATCHES: $lsub\n" if ($opt_d);
+              if ( $lsub->equal($obj) or ( $tweak_url_subj && $lsub->equal($tweak_url_subj) ))  {
+                      print "\n$logtag\tLSUBJECT MATCHES: $lsub\n" if ($opt_d);          
+	      } else {		        
+                      print "\t$logtag\tLSUBJECT does not match: $lsub  -> ignored\n" if ($opt_d); 
+		      next TRIPLE;
               }
             
               $triplecount_subj++;
@@ -325,7 +329,7 @@ sub init_log_fields {
                  '1_error' => "",
                  '2_triple-subj'  => "",
                  '3_triple-selected' => "",
-		     '4_triple-actually_inserted' => "",
+		 '4_triple-actually_inserted' => "",
                 };
     return $loghash;
 } 
