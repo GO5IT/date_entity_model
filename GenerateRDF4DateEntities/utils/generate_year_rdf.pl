@@ -9,8 +9,8 @@ use DateTime::Calendar::Julian qw(:all);
 use DateRDFUtils;
 use Getopt::Std;
 
-my $DEFAULT_FROM = "-3000-01-01";
-my $DEFAULT_TO   = "3000-01-01";
+my $DEFAULT_FROM = "-10-01-01";
+my $DEFAULT_TO   = "110-01-01";
 
 our ($opt_h, $opt_l, $opt_t, $opt_H, $opt_f, $opt_d);
 getopts('hl:Hdf:t:');
@@ -108,8 +108,10 @@ DAY: while ( DateTime->compare( $dt, $dtmax ) <= 0 ) {
 
       ## for debugging / testing
       ## print "$yyyy - $yyyyx - $nosignyyyyx\n"; $dt->add(days => 1); next DAY;
-      my $nosignyyyyplus = $nosignyyyy + 1;
-      my $nosignyyyyminus = $nosignyyyy - 1;
+      my $nosignyyyyxplus = $nosignyyyyx + 1;
+      my $nosignyyyyxminus = $nosignyyyyx - 1;
+      my $nosignyyyyplus = sprintf("%.4d", $nosignyyyy + 1);
+      my $nosignyyyyminus = sprintf("%.4d", $nosignyyyy - 1);
 
       ## handle previous and next ...        
       ## increment date ...
@@ -137,7 +139,7 @@ DAY: while ( DateTime->compare( $dt, $dtmax ) <= 0 ) {
       # If $nosignyyyy is AD except 0000, show additional altLabel for Year
       my $year_altlabel = "";
       if ($yyyy <= 0000){
-     	$year_altlabel = "" . qq{Year $nosignyyyyplus BC}      	
+     	$year_altlabel = "" . qq{Year $nosignyyyyxplus BC}      	
       }
       else {
       	$year_altlabel = "" . qq{Year $nosignyyyyx}
@@ -146,7 +148,7 @@ DAY: while ( DateTime->compare( $dt, $dtmax ) <= 0 ) {
       ## make an additional altLabel, depending on BC and AD:
       my $ddx_altlabel = ""; 
       if ($bcsign eq "-"){
-          $ddx_altlabel = "" . qq{$nosignyyyyplus BC}
+          $ddx_altlabel = "" . qq{$nosignyyyyxplus BC}
       }
       else { 
           $ddx_altlabel = "" . qq{AD $nosignyyyyx}  
@@ -174,17 +176,33 @@ DAY: while ( DateTime->compare( $dt, $dtmax ) <= 0 ) {
 
       # DBpedia and YAGO syntax
       my $dbpedia_yago = "";
-      # If $yyyy is between AD 1 and AD 99, format is AD_1 and AD_999 (without prefix 0)
+      # If $yyyy is 100 AD, then http://dbpedia.org/resource/100
+      # Apart from above, if $yyyy is between AD 1 and AD 99, format is AD_1 and AD_999 (without prefix 0)
       # Problem about inconsistent disambiguity for mathematical numbers, years, and other possible concepts by Bpedia, Wikipedia, and YAGO
       # Problem about inconsistent HTTP redirect by DBpedia (about until AD:999), Wikipedia, and YAGO (about until AD_101), thus we follow the stricter YAGO
-      if ($yyyy > 0000 and $yyyy < 102){
+      if ($yyyy == 0100){
+        $dbpedia_yago = "" . qq{${yyyyx}}
+      }
+      elsif ($yyyy > 0000 and $yyyy < 102){
 		    $dbpedia_yago = "" . qq{AD_${yyyyx}}
       }
       elsif ($yyyy <= 0000){
-		    $dbpedia_yago = "" . qq{${nosignyyyyplus}_BC}
+		    $dbpedia_yago = "" . qq{${nosignyyyyxplus}_BC}
       }
       else{
       	$dbpedia_yago = "" . qq{$yyyyx}
+      }
+
+      ## JapanSearch, depending on 0000, BC, and AD:
+      my $jps = ""; 
+      if ($yyyy eq "0000"){
+          $jps = "" . qq{0001BCE}
+      }
+      elsif ($bcsign eq "-"){
+          $jps = "${nosignyyyyplus}BCE";
+      }
+      else { 
+          $jps = "" . qq{$yyyy}  
       }
 
       ## skos:broader depending on AD and BC (attention suffix -xxxx9 needs to be different (e.g. 0000 (1 BC) -> -001, -0769 (770 BC) -> -077):
@@ -218,9 +236,10 @@ DAY: while ( DateTime->compare( $dt, $dtmax ) <= 0 ) {
         <skos:definition xml:lang="en">$yyyy in ISO8601 (the Gregorian and proleptic Gregorian calendar). ${ddx_altlabel}.</skos:definition>
         <skos:note>${skosnote} With regard to Date Entity modelling, documentation should be consulted at https://vocabs.acdh.oeaw.ac.at/date/. It includes information about URI syntax, ISO8601 conventions, and data enrichment among others.</skos:note>
         <time:hasTRS rdf:resource="http://www.opengis.net/def/uom/ISO-8601/0/Gregorian"/>
- 		    <skos:exactMatch rdf:resource="http://dbpedia.org/resource/${dbpedia_yago}"/>
+ 		<skos:exactMatch rdf:resource="http://dbpedia.org/resource/${dbpedia_yago}"/>
       	<skos:exactMatch rdf:resource="http://yago-knowledge.org/resource/${dbpedia_yago}"/>
         <skos:exactMatch rdf:resource="http://semium.org/time/$yyyy"/>
+        <skos:exactMatch rdf:resource="https://jpsearch.go.jp/entity/time/${jps}"/>
         <skos:broader rdf:resource="http://semium.org/time/${semium}xx"/>
         <skos:broader rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/$decade"/>
         <time:intervalMeets rdf:resource="https://vocabs.acdh.oeaw.ac.at/date/$nextyyyy"/>

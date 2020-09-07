@@ -13,6 +13,11 @@ use Encode;
 
 use utf8;
 
+## I suspect that the data which we fetch from Store (which probably makes up most of the 
+## text printed to STDOUT is binary data encoded in UTF-8. Therfore STDOUT is kept as binary stram.
+binmode STDOUT, ":encoding(utf-8)" or die "Cannot set utf-8-mode to STDOUT\n";
+
+
 my $DEFAULTLOG="add_existing_log.csv";
 
 my $base_uri="http:://foo"; ## ?  
@@ -49,6 +54,7 @@ my $skos_exactmatch   = $DateRDFUtils::nsobjects->{'skos'}->exactMatch;
 my $owl_sameas        = $DateRDFUtils::nsobjects->{'owl'}->sameAs;
 my $dbo_abstract      = $DateRDFUtils::nsobjects->{'dbo'}->abstract;
 my $foaf_primarytopic = $DateRDFUtils::nsobjects->{'foaf'}->isPrimaryTopicOf;
+my $skos_altLabel     = $DateRDFUtils::nsobjects->{'skos'}->altLabel;
 
 my $checkinDBPedia  = [  
       $owl_sameas,
@@ -60,7 +66,8 @@ my $checkinDBPedia  = [
 
 ## Specify below which predicates to fetch from wikidata
 my $checkinWikidata = [  
-      $rdfs_label, 
+      $rdfs_label,
+  $skos_altLabel, 
 	$DateRDFUtils::nsobjects->{'wdt'}->P910, 
 	$DateRDFUtils::nsobjects->{'wdt'}->P6228,
 	$DateRDFUtils::nsobjects->{'wdtn'}->P244,
@@ -68,8 +75,8 @@ my $checkinWikidata = [
 	$DateRDFUtils::nsobjects->{'wdtn'}->P646,
  ];
 
-our ($opt_h, $opt_d, $opt_i,$opt_o,$opt_l,$opt_u,$opt_t,$opt_L, $opt_S);
-getopts('hdi:o:l:u:tL:S:');
+our ($opt_h, $opt_d, $opt_i,$opt_o,$opt_l,$opt_u,$opt_t,$opt_L, $opt_S, $opt_b);
+getopts('hdi:o:l:u:tL:S:b:');
 
 ## make opt_L and opt_S numeric.
 $opt_L = 0 unless $opt_L;
@@ -137,20 +144,24 @@ my $fho;
 my $fhlog;
 my $fhlogdump;
 
+## Trine::Parser::RDFXML.pm docu says:
+#Note: The filehandle should NOT be opened with the ":encoding(UTF-8)" IO layer,
+#as this is known to cause problems for XML::SAX.
 if ($opt_i) {
-  open($fhi, "<:encoding(utf-8)", $opt_i);
+  open($fhi, $opt_i);
+  binmode($fhi) or die "Cannot set fhi to binmode!\n";
 }
 if ($opt_o) {
+#  
   open($fho, ">", $opt_o);
-  ### puh! that's the only way I managed to print exotic UTF8 correctly (e.g. "ckb" -> Persian):
-  ### open fho as binary and use explicit decoding! 
+  ## when using serialize_model_to_string + print to file : use  binary 
   binmode($fho) or die "Cannot set fho to binmode!\n";
 }
-
 open($fhlog, '>', $logfile);
 open($fhlogdump, '>', $logfiledump);
 
 ### initialize 
+# my $store      = RDF::Trine::Store::Hexastore->new();
 my $store      = RDF::Trine::Store::Memory->new();
 my $model      = RDF::Trine::Model->new($store);
 my $parser     = RDF::Trine::Parser->new( 'rdfxml' );
@@ -162,27 +173,15 @@ if ($opt_t) {
 	print "parser->media_types = " . $parser->media_types . "\n"; 
  
         print "== Parser for media_type $MEDIATYPE :\n";
-        print $parser->parser_by_media_type ( $MEDIATYPE ); 
-        exit;
+        print $parser->parser_by_media_type( $MEDIATYPE ) . "\n\n";
+      
 }
 
 # load the -i <infile> into a model, or load from web-source using -u <url>
 my $response;
 if ($opt_i) {
     $response = $parser->parse_file_into_model( $base_uri, $fhi, $model );
-} else {
-#    if ($opt_p) {
-#       print "Fetching from url: $url ...\n";
-#       $error = DateRDFUtils::pre_test_url_for_error($url);
-#    }
-#    if ($error) {
-#       ### TODO: write info to logfile
-#       die "INITIAL HTTP FAILED for: $url\t$error\n";
-#    } else {
-#       $response = $parser->parse_url_into_model( $url, $model, content_cb => \&DateRDFUtils::content_callback );
-#    }
-
-      
+} else { 
     ## call parse_url_into_model() in a eval-block to catch HTTP exceptions!
     ## cf.  https://perlmaven.com/fatal-errors-in-external-modules
     eval {
@@ -208,7 +207,6 @@ if ($opt_d && !$fhi) {
   print Dumper $response;
   exit;
 }
-
 
 
 ## almost the whole logic is packed into THIS function
@@ -237,28 +235,57 @@ if ($opt_d && !$fhi) {
 ## opt_L          Limit number of subjects (for testing)
 
 my $log = {}; 
-## 1st run: dbpedia
-DateRDFUtils::add_triples_from_external_sameAs ( $model, $parser, $skos_exactmatch, 'http://dbpedia.org' , $checkinDBPedia, "01_DBPedia", $DateRDFUtils::tweak_urls_dbpedia, {}, {}, {}, $opt_d, $log, $opt_S, $opt_L ); 
-## 2nd run: wikidata
-DateRDFUtils::add_triples_from_external_sameAs ( $model, $parser, $owl_sameas, '//www.wikidata.org' , $checkinWikidata, "02_Wikidata", {}, {}, {}, $DateRDFUtils::tweak_obj_wdata, $opt_d, $log, $opt_S, $opt_L );
- 
-## 3rd run (ie. 3rd traversal of websites) onward can be added below, using the same line above and change the URL
+
+if ($opt_t) {
+   print "\t# Because of -t (test-mode) we are skipping all the fetching of extrernal links and only read- and write the input!\n\n";
+} else {
+	## 1st run: dbpedia
+	DateRDFUtils::add_triples_from_external_sameAs ( $model, $parser, $skos_exactmatch, 'http://dbpedia.org' , $checkinDBPedia, "01_DBPedia", $DateRDFUtils::tweak_urls_dbpedia, {}, {}, {}, $opt_d, $log, $opt_S, $opt_L ); 
+	## 2nd run: wikidata
+	DateRDFUtils::add_triples_from_external_sameAs ( $model, $parser, $owl_sameas, '//www.wikidata.org' , $checkinWikidata, "02_Wikidata", {}, {}, {}, $DateRDFUtils::tweak_obj_wdata, $opt_d, $log, $opt_S, $opt_L );
+	## 3rd run (ie. 3rd traversal of websites) onward can be added below, using the same line above and change the URL
+      ## ...
+ }
+
 
 
 ##### serialize the model to either outfile or to standard-output
 ## the only way that worked: explicitely decode UTF-8 and write to a 'binary' stream 
 ## ATTENTION: only "utf8" (the loose, non-strict version) works; the strict "UTF-8" does NOT work:
 ## Cf.   https://perldoc.perl.org/Encode.html
-my $outstring = decode("utf8", $serializer->serialize_model_to_string ( $model ));
 
+
+#my $fhox;
+#my $fhox2;
+#my $fhox4;
+#my $fhox5;
+#my $fhox6;
+
+
+#open($fhox2, ">", "out_2BC10_XX_binmode_utf8_deco.rdf");
+#binmode($fhox2, ":encoding(utf-8)") or die "Cannot set fhox to binmode!\n";
+#print $fhox2 $outstring_deco;
+#close($fhox2);
+
+
+#### RAW
+#open($fhox4, ">", "out_4BC10_XX_binmode_raw_plain.rdf");
+#binmode($fhox4) or die "Cannot set fhox4 to binmode raw!\n";
+#print $fhox4 $outstring_plainplain;
+#close($fhox4);
+
+
+###### original !!! 
 if ($fho) {
-	print $fho $outstring;
+      ## RDF::Trine::Serializer::serialize_model_to_string 
+      ### invoces "open( my $fh, '>:encoding(UTF-8)', \$string );" !
+      ## i.e. the resultring $string is already in UTF-8 and has to be printed to binary
+      print $fho $serializer->serialize_model_to_string($model);
 } else {
-      ### does NOT work :-( 
-      binmode(STDOUT) or die "Cannot set binmode to STDOUT\n";
-	print $outstring;
-}
-
+      # for logging STDOUT has to be set to ":encoding(utf-8)" 
+      # therefore we need to _decode_ string before is gets encoded again!
+      print STDOUT decode("UTF-8", $serializer->serialize_model_to_string($model));
+} 
 
 if ($fhlogdump) { 
   print $fhlogdump Dumper $log; 
@@ -269,8 +296,8 @@ if ($fhlog) {
 }
 
 ## close all open files
-if ($fhi)   { close($fhi); }
-if ($fho)   { close($fho); }
+if ($fhi)   { close($fhi); }; 
+if ($fho)   { close($fho); };
 if ($fhlog) { close($fhlog); }
 if ($fhlogdump) { close($fhlogdump); }
 
