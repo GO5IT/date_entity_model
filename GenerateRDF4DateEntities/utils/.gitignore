@@ -1,6 +1,7 @@
 sample_*.rdf
 generated_data
 *.log
+log_*
 reusableCode
 MonthDayUnitOfTime
 *.csv
