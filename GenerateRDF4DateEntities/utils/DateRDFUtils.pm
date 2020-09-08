@@ -71,8 +71,12 @@ foreach my $prefix (keys %$DateRDFUtils::namespacehash) {
 ## case 1: AD_1 to AD_101 
 
 our $tweak_urls_dbpedia = { 
-	qr{http://dbpedia.org/resource/AD_(\d{1,2}|101)$} => '"http://dbpedia.org/resource/$1"',
+	qr{http://dbpedia.org/resource/AD_(\d{1,2}|100|101)$} => '"http://dbpedia.org/resource/$1"',
 };
+
+### for testing tweak off
+#$tweak_urls_dbpedia = { 
+#	};
 
 ## $tweak object has a <PREDICATE> additional control-option : 
 ## <PREDICATE_AS_STRING> => {  <REGPATTERN1> =>  <SUBST1>, <REGEXPATTERN2> => <SUBST2> ... }
@@ -186,9 +190,9 @@ sub add_triples_from_external_sameAs {
           my $obj  = $st->object;  
           ### only consider objects which match $filter 
           if ($obj->as_string =~ m{$filter}) {
-               print "\t$logtag: selected as external reference:\t$pred\t$obj\n" if ($opt_d);
+               print join("\t", "\t$logtag: selected as external reference:", $pred->as_string, $obj->as_string, "\n") if ($opt_d);
           } else {
-             print "\t$logtag: neglected as external reference:\t$pred\t$obj\n" if ($opt_d); 
+              print join("\t", "\t$logtag: neglected as external reference:", $pred->as_string, $obj->as_string, "\n") if ($opt_d);
              next SAMEAS; 
           }
           ### tweak the url if necessary 
@@ -246,9 +250,9 @@ sub add_triples_from_external_sameAs {
 #              }
 
               if ( $lsub->equal($obj) or ( $tweak_url_subj && $lsub->equal($tweak_url_subj) ))  {
-                      print "\n$logtag\tLSUBJECT MATCHES: $lsub\n" if ($opt_d);          
+                      print "\n$logtag\tLSUBJECT MATCHES: ". $lsub->as_string() . "\n" if ($opt_d);          
 	      } else {		        
-                      print "\t$logtag\tLSUBJECT does not match: $lsub  -> ignored\n" if ($opt_d); 
+                      print "\t$logtag\tLSUBJECT does not match: ". $lsub->as_string() . " -> ignored\n" if ($opt_d); 
 		      next TRIPLE;
               }
             
@@ -257,17 +261,17 @@ sub add_triples_from_external_sameAs {
               ### iff @interestingpreds is empty: add ALL triples 
               if ( not(@$predstoadd) or grep { $lpred->equal($_) } @$predstoadd ) {
                    $triplecount_selected++;
-                   print "$logtag\tHIT:\t\t$lpred\t$lobj\n" if ($opt_d);
-
+                   print "$logtag\tHIT:\t\t" . $lpred->as_string . "\t" . $lobj->as_string ."\n" if ($opt_d);
+ 
                    ## check if $lpred is in $tweak_obj - and tweak the object value if necessary!
                    my $obj_was_tweaked = apply_tweak_obj( $lpred, \$lobj, $tweak_obj );
-                   if ( $opt_d && $obj_was_tweaked ) { print "\t$logtag\tobject was tweaked to: " . $lobj . "\n"; }
+                   if ( $opt_d && $obj_was_tweaked ) { print "\t$logtag\tobject was tweaked to: " . $lobj->as_string . "\n"; }
 
 	             ## add triple to GLOBAL model
                     
                    $model->add_statement( RDF::Trine::Statement->new($subject, $lpred, $lobj) );
               } else {
-		print "$logtag\tNO hit:\t\t$lpred\t$lobj\n" if ($opt_d);
+		print join("\t", $logtag, "NO hit:", $lpred->as_string, $lobj->as_string, "\n") if ($opt_d);
               }
            } # TRIPLE
            ### statistics:
