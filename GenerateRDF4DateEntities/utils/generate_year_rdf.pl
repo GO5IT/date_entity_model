@@ -1,16 +1,18 @@
-#!/usr/bin/perl
+#!/usr/bin/perl -CSD
 
 use warnings;
 use strict;
 use utf8;
 
+## use Encode; ## not needed iff "-CSD" is used
 use DateTime qw(:all);
 use DateTime::Calendar::Julian qw(:all);
 use DateRDFUtils;
 use Getopt::Std;
 
-my $DEFAULT_FROM = "-10-01-01";
-my $DEFAULT_TO   = "110-01-01";
+
+my $DEFAULT_FROM = "-2999-01-01";
+my $DEFAULT_TO   = "3000-12-31";
 
 our ($opt_h, $opt_l, $opt_t, $opt_H, $opt_f, $opt_d);
 getopts('hl:Hdf:t:');
@@ -236,8 +238,8 @@ DAY: while ( DateTime->compare( $dt, $dtmax ) <= 0 ) {
         <skos:definition xml:lang="en">$yyyy in ISO8601 (the Gregorian and proleptic Gregorian calendar). ${ddx_altlabel}.</skos:definition>
         <skos:note>${skosnote} With regard to Date Entity modelling, documentation should be consulted at https://vocabs.acdh.oeaw.ac.at/date/. It includes information about URI syntax, ISO8601 conventions, and data enrichment among others.</skos:note>
         <time:hasTRS rdf:resource="http://www.opengis.net/def/uom/ISO-8601/0/Gregorian"/>
- 		<skos:exactMatch rdf:resource="http://dbpedia.org/resource/${dbpedia_yago}"/>
-      	<skos:exactMatch rdf:resource="http://yago-knowledge.org/resource/${dbpedia_yago}"/>
+        <skos:exactMatch rdf:resource="http://dbpedia.org/resource/${dbpedia_yago}"/>
+        <skos:exactMatch rdf:resource="http://yago-knowledge.org/resource/${dbpedia_yago}"/>
         <skos:exactMatch rdf:resource="http://semium.org/time/$yyyy"/>
         <skos:exactMatch rdf:resource="https://jpsearch.go.jp/entity/time/${jps}"/>
         <skos:broader rdf:resource="http://semium.org/time/${semium}xx"/>

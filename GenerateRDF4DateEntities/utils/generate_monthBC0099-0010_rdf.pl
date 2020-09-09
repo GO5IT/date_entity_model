@@ -1,11 +1,11 @@
-#!/usr/bin/perl
-
+#!/usr/bin/perl -CSD
 # use DateTime qw(:all);
 # use DateTime::Calendar::Julian qw(:all);
 use Getopt::Std;
 use DateRDFUtils;
 use warnings;
 use strict;
+use utf8;
 
 ## DateTime also handles "negative" Dates, i.e. "B.C"
 
