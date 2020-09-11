@@ -9,4 +9,6 @@ MonthDayUnitOfTime
 *.html
 *.dump
 TESTREDIRECT
+test_*pl
+test_*sh
 

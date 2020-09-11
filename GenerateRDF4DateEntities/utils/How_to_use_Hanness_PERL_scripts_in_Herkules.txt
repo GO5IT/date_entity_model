@@ -1,0 +1,27 @@
+How to use Hannes's PERL scripts in Herkules
+
+# Docker to start
+docker-manage -e go-perl -a enter
+(OR shortcut is "perl-enter")
+
+# If Docker needs to be restarted, do this before above
+docker-manage -e go-perl -a build
+
+# Run script from anywhere, but be awere three files are needed in the same folder to run it. Normally the default path is /home/go/Date_Entity_Model/GenerateRDF4DateEntities/utils
+
+
+A) Script to generate Date Entities 
+1. run_generate_tests.sh, the main script to run
+2. generate_xxxx_rdf.pl (e.g. generate_year_rdf.pl), which configure the data generation for the level of entity (year, month etc)
+3. DateRDFUtils.pm, a module which is imported to pl
+
+B) Script to enrich Date Entities by adding more info from Linked Open Data (eg DBpedia and Wikidata)
+# Run the script with options
+./run_add_existing.sh (-h) (-d) (-S <SKIP_N>) (-L <LIMIT_M>) <RDF-XML-FILE>
+(example command: run_add_existing.sh -d -S 50 -L 5 ad1-100.rdf)
+
+The new script generates the following files with the timestamp of their creation:
+1. .rdf : generated RDF file
+2. .csv log-info provide info about statistics of processing
+3. csv.dump : the same info as .csv but in a format similar to .json -> useers can ignore / DELETE
+4. log...txt : most detailed logging during processing: it records many of the decisions and is valuable in the case Hannes need to debug. -> Users can ignore / but NOT delete
