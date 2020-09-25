@@ -112,7 +112,10 @@ USAGE $0 (-h) (-d) (-i <INPUTFILE>) (-o <OUTPUTFILE>) (-l <LOGFILE>) (-t)
 -S <SKIP>    Skip <SKIP> RDF:Descriptions (For testing!). 
              
 
--t           TEST-MODE
+-t           TEST-MODE: this is _purely_ for testing: 
+	     there is NO fetching from external links; 
+	     it only will print some settings and exit. 
+	     
 
 -d           Debug mode: print excessive information to <STDOUT> 
 
@@ -212,32 +215,38 @@ if ($opt_d && !$fhi) {
 ## almost the whole logic is packed into THIS function
 ## add_triples_from_external_sameAs ( $model, $parser, $sameas, $filter, $predstoadd, $tweak_urls, $tweak_subj, $tweak_pred, $tweak_obj $logtag, $opt_d, $log, $opt_S, $opt_L ) 
 ## call it twice: 
-## The first run will search for skos:exactMatch on dbpedia and fetch the appropriate triples from there
+## The first run will search for skos:exactMatch which point to 'http://dbpedia.org' and fetch the appropriate triples ($checkinDBPedia) from there
 ## these also include owl:sameAs for wikidata 
-
-
+## The second run will  follow all them $owl_sameas which point to  '//www.wikidata.org' and fetch the appropriate triples ($checkinWikidata) from there
+##
+## How add_triples_from_external_sameAs works:
+## 1) in $model: look for all $sameAs (i.e. skos:exactMatch or owl:sameAs) pointing to external URLs
+## 2) only proceed with those external URLS which match the string(s) mentioned in $filter 
+## 3) retrieve data from external URL
+## 4) add the predicates mentioned in $predstoadd from external URL to $model 
+## 
 ## Arguments:
 ## model	      A RDF::Trine::Model
-## parser         A RDF::Trine::Parser
+## parser             A RDF::Trine::Parser
 ## sameas	      Predicate to use for determining "sameness" - e.g. skos:axactMatch or owl:sameAs
-## filter         A string used for further filtering down the statements found by searching for $sameas
+## filter             A string used for further filtering down the statements found by searching for $sameas
 ##	            e.g. "http://dbpedia.org" 
-## predstoadd     A arrayref enlisting all the predicates to be added;
+## predstoadd        A arrayref enlisting all the predicates (found in the external resource) to be added to the $model;
 ##	            iff empty arrayref is added: add ALL predicates 
-## tweak_urls 	A hashref enlisting PATTERN => SUBSTITUTION pairs  which are applied to a URL before fetching it
+## tweak_urls 	  A hashref enlisting PATTERN => SUBSTITUTION pairs  which are applied to a URL before fetching it
 ## tweak_subj     A hashref enlisting PATTERN => SUBSTITUTION pairs  which are applied to a SUBJECTS before adding them to the TripleStore
 ## tweak_pred     A hashref enlisting PATTERN => SUBSTITUTION pairs  which are applied to a PREDICAT-values before adding them to the TripleStore
 ## tweak_obj      A hashref enlisting PATTERN => SUBSTITUTION pairs  which are applied to a OBJECT-values   before adding them to the TripleStore          
 ## logtag         A string which is just used in the supply a tag which is used in the print-outs of the log. E.g. "DBpedia" 
 ## opt_d          Debug flag
-## log            A logging-object : a hashref  for collecting log-info (NOT YET USED !)
+## log            A logging-object : a hashref for collecting the log-info.
 ## opt_S          Skip number of subjects (for testing)
 ## opt_L          Limit number of subjects (for testing)
 
 my $log = {}; 
 
 if ($opt_t) {
-   print "\t# Because of -t (test-mode) we are skipping all the fetching of extrernal links and only read- and write the input!\n\n";
+   print "\t# Because of -t (test-mode) we are skipping all the fetching of external links and only read- and write the input!\n\n";
 } else {
 	## 1st run: dbpedia
 	DateRDFUtils::add_triples_from_external_sameAs ( $model, $parser, $skos_exactmatch, 'http://dbpedia.org' , $checkinDBPedia, "01_DBPedia", $DateRDFUtils::tweak_urls_dbpedia, {}, {}, {}, $opt_d, $log, $opt_S, $opt_L ); 

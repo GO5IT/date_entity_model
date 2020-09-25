@@ -109,25 +109,27 @@ our $useragent = LWP::UserAgent->new(
 
 ## add_triples_from_external_sameAs ( $model, $parser, $sameas, $filter, $predstoadd, $tweak_urls, $tweak_subj, $tweak_pred, $tweak_obj $logtag, $opt_d, $log, $opt_S, $opt_L ) 
 ##
-## 1) in $model: look for skos:exactMatch or owl:sameAs pointing to external URL
-## 2) retrieve data from external URL
-## 3) add selected predicates from external URL to $model 
+## How add_triples_from_external_sameAs works:
+## 1) in $model: look for all $sameAs (i.e. skos:exactMatch or owl:sameAs) pointing to external URLs
+## 2) only proceed with those external URLS which match the string(s) mentioned in $filter 
+## 3) retrieve data from external URL
+## 4) add the predicates mentioned in $predstoadd from external URL to $model 
 ## 
 ## Arguments:
 ## model	      A RDF::Trine::Model
-## parser         A RDF::Trine::Parser
+## parser             A RDF::Trine::Parser
 ## sameas	      Predicate to use for determining "sameness" - e.g. skos:axactMatch or owl:sameAs
-## filter         A string used for further filtering down the statements found by searching for $sameas
+## filter             A string used for further filtering down the statements found by searching for $sameas
 ##	            e.g. "http://dbpedia.org" 
-## predstoadd     A arrayref enlisting all the predicates to be added;
+## predstoadd        A arrayref enlisting all the predicates (found in the external resource) to be added to the $model;
 ##	            iff empty arrayref is added: add ALL predicates 
-## tweak_urls 	A hashref enlisting PATTERN => SUBSTITUTION pairs  which are applied to a URL before fetching it
+## tweak_urls 	  A hashref enlisting PATTERN => SUBSTITUTION pairs  which are applied to a URL before fetching it
 ## tweak_subj     A hashref enlisting PATTERN => SUBSTITUTION pairs  which are applied to a SUBJECTS before adding them to the TripleStore
 ## tweak_pred     A hashref enlisting PATTERN => SUBSTITUTION pairs  which are applied to a PREDICAT-values before adding them to the TripleStore
 ## tweak_obj      A hashref enlisting PATTERN => SUBSTITUTION pairs  which are applied to a OBJECT-values   before adding them to the TripleStore          
 ## logtag         A string which is just used in the supply a tag which is used in the print-outs of the log. E.g. "DBpedia" 
 ## opt_d          Debug flag
-## log            A logging-object : a hashref  for collecting log-info (NOT YET USED !)
+## log            A logging-object : a hashref for collecting the log-info.
 ## opt_S          Skip number of subjects (for testing)
 ## opt_L          Limit number of subjects (for testing)
 sub add_triples_from_external_sameAs {
