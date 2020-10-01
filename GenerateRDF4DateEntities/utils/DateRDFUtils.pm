@@ -80,13 +80,14 @@ our $tweak_urls_dbpedia = {
 
 ## $tweak object has a <PREDICATE> additional control-option : 
 ## <PREDICATE_AS_STRING> => {  <REGPATTERN1> =>  <SUBST1>, <REGEXPATTERN2> => <SUBST2> ... }
-## for patterns which are are to be applied on ALL predicates use "*" as <PREDICATE> 
+## for patterns which are to be applied on ALL predicates use "*" as <PREDICATE> 
 
 ### note: the keys in the hash must be strings, not objects. 
-### threrfore we filled in the property-URL as string.
-### instead of:
+### therefore the property-URL is provided as string.
+###
+### btw.: instead of:
 ###       'http://www.wikidata.org/prop/direct-normalized/P244' 
-### we could write:
+### we also could write:
 ###        $DateRDFUtils::nsobjects->{'wdtn'}->P244->uri_value
 ### which would produce just the same URL-string!
 
@@ -103,10 +104,13 @@ our $useragent = LWP::UserAgent->new(
            protocols_allowed => [ 'http', 'https' ] 
 );
 
-  $useragent->default_header('Accept-Charset'  => 'utf-8');
-  $useragent->default_header('Accept-Language' => "en");
-  $useragent->default_header('Accept' => $DateRDFUtils::MEDIATYPERDFXML );
+$useragent->default_header('Accept-Charset'  => 'utf-8');
+$useragent->default_header('Accept-Language' => "en");
+$useragent->default_header('Accept' => $DateRDFUtils::MEDIATYPERDFXML );
 
+###################
+##### ** THIS is the CENTRAL FUNCTION, which almost does the WHOLE JOB !!! **
+###################
 ## add_triples_from_external_sameAs ( $model, $parser, $sameas, $filter, $predstoadd, $tweak_urls, $tweak_subj, $tweak_pred, $tweak_obj $logtag, $opt_d, $log, $opt_S, $opt_L ) 
 ##
 ## How add_triples_from_external_sameAs works:
@@ -117,13 +121,13 @@ our $useragent = LWP::UserAgent->new(
 ## 
 ## Arguments:
 ## model	      A RDF::Trine::Model
-## parser             A RDF::Trine::Parser
-## sameas	      Predicate to use for determining "sameness" - e.g. skos:axactMatch or owl:sameAs
-## filter             A string used for further filtering down the statements found by searching for $sameas
+## parser         A RDF::Trine::Parser
+## sameas	      Predicate to use for determining "sameness" - e.g. skos:exactMatch or owl:sameAs
+## filter         A string used for further filtering down the statements found by searching for $sameas
 ##	            e.g. "http://dbpedia.org" 
-## predstoadd        A arrayref enlisting all the predicates (found in the external resource) to be added to the $model;
+## predstoadd     A arrayref enlisting all the predicates (found in the external resource) to be added to the $model;
 ##	            iff empty arrayref is added: add ALL predicates 
-## tweak_urls 	  A hashref enlisting PATTERN => SUBSTITUTION pairs  which are applied to a URL before fetching it
+## tweak_urls 	A hashref enlisting PATTERN => SUBSTITUTION pairs  which are applied to a URL before fetching it
 ## tweak_subj     A hashref enlisting PATTERN => SUBSTITUTION pairs  which are applied to a SUBJECTS before adding them to the TripleStore
 ## tweak_pred     A hashref enlisting PATTERN => SUBSTITUTION pairs  which are applied to a PREDICAT-values before adding them to the TripleStore
 ## tweak_obj      A hashref enlisting PATTERN => SUBSTITUTION pairs  which are applied to a OBJECT-values   before adding them to the TripleStore          
@@ -176,7 +180,6 @@ sub add_triples_from_external_sameAs {
 	#                 '3_triple-selected' => "",
 	#		     '4_triple-actually_inserted' => "",
        my $llog = init_log_fields();
-
        if ( not defined ( $log->{ $subject->as_string }->{ $logtag }  ) ) { 
 		$log->{ $subject->as_string }->{ $logtag } = $llog;
        } else {
@@ -219,7 +222,7 @@ sub add_triples_from_external_sameAs {
           eval {
 		     # code that might throw exception
 		     $lresponse = $parser->parse_url_into_model( $tweaked_obj_uri, $localmodel, content_cb => \&content_callback );
-                     print "$logtag:\t\tparse_url_into_model() SUCCESS:\t" . $tweaked_obj_uri . "\n";
+                 print "$logtag:\t\tparse_url_into_model() SUCCESS:\t" . $tweaked_obj_uri . "\n";
 		     1;  # always return true to indicate success
 		}
 		or do {
@@ -289,33 +292,6 @@ sub add_triples_from_external_sameAs {
  print "STATS\t$logtag\tNumber of RDF - statements in model AFTER: " . $model->size . "\n";
 }
 
-########### NOT REQUIRED ANYMORE beacause we now are catching EXCEPTIONS properly !!!!
-
-#### pre_test_url_for_error ($url, $useragent) 
-#### uses $useragent to test $url: returns FALSE (empty string) if successful and 
-#### the HTTP-Error otherwise.
-#### This is required because that's the only way to catch errors 
-#### from the HTTP-call: RDF::Trine::Parser->parse_url_into_mode just dies 
-#### when there is an error.
-#### If $useragent is not supplied, then $DateRDFUtils::useragent is used as default
-##sub pre_test_url_for_error {
-##  my $url = shift;
-##  my $ua  = shift;
-##  if ( ! $ua ) {
-##    $ua = $DateRDFUtils::useragent;
-##  }
-##  #  print "== testing $url ...\n";
-##  #   print "==ua==\n";
-##  #   print Data::Dumper::Dumper($ua);
-##  my $response = $ua->get($url);
-##  #  print "== tested $url ...\n";
-##  if ($response->is_success) {
-##    return "";
-##  }  else { 
-##    # print "== FAILED: " . $response->status_line . "\n";
-##    return $response->status_line;
-##  }
-##}
 
 ########### sort function for sorting subhects per year 
 # compare two numbers
@@ -331,11 +307,11 @@ sub compare_subject_years{
 ## initialize a hash for local information on each _external_ link
 sub init_log_fields { 
     my $loghash =  { 
-                 '0_url_sameAs' => "",
-                 '1_error' => "",
-                 '2_triple-subj'  => "",
+                 '0_url_sameAs'      => "",
+                 '1_error'           => "",
+                 '2_triple-subj'     => "",
                  '3_triple-selected' => "",
-		 '4_triple-actually_inserted' => "",
+		     '4_triple-actually_inserted' => "",
                 };
     return $loghash;
 } 
@@ -361,6 +337,10 @@ sub render_loghash_as_csv {
    return(join("\n", @csv));
 }
 
+
+############# RDF::Trine::parse_url_into_model offers to use a callback - function.
+############# we just experimented a bit with it, but found it not useful. But we leave it as a dummy! 
+#############
 #parse_url_into_model ( $url, $model [, %args] )
 #Retrieves the content from $url and attempts to parse the resulting RDF into $model using a parser chosen by the associated content media type.
 #If %args contains a 'content_cb' key with a CODE reference value, that callback function will be called after a successful response as:
@@ -416,8 +396,7 @@ sub apply_tweak_obj {
    my $pred = shift;
    my $obj  = shift; 
    my $tweaks = shift; 
-   my $was_tweaked = 0;
-  
+   my $was_tweaked = 0; 
    my $objstr;
 
    if ( $$obj->is_resource ) { 
@@ -437,7 +416,6 @@ sub apply_tweak_obj {
    }
    ## iff there was a tweak: change $obj !
    if ($was_tweaked) {
-
 	   if ($$obj->is_resource) { 
 	      $$obj = RDF::Trine::Node::Resource->new($objstr);
 	   } elsif ($$obj->is_literal) {

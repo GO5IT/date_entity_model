@@ -53,20 +53,19 @@ my $rdfs_label        = $DateRDFUtils::nsobjects->{'rdfs'}->label;
 my $skos_exactmatch   = $DateRDFUtils::nsobjects->{'skos'}->exactMatch;
 my $owl_sameas        = $DateRDFUtils::nsobjects->{'owl'}->sameAs;
 my $dbo_abstract      = $DateRDFUtils::nsobjects->{'dbo'}->abstract;
-my $foaf_primarytopic = $DateRDFUtils::nsobjects->{'foaf'}->isPrimaryTopicOf;
+#my $foaf_primarytopic = $DateRDFUtils::nsobjects->{'foaf'}->isPrimaryTopicOf;
 my $skos_altLabel     = $DateRDFUtils::nsobjects->{'skos'}->altLabel;
 
 my $checkinDBPedia  = [  
-      $owl_sameas,
+   $owl_sameas,
 	 $rdfs_label,
-	 $foaf_primarytopic,
 	 $dbo_abstract, 
  ];
 
 
 ## Specify below which predicates to fetch from wikidata
 my $checkinWikidata = [  
-      $rdfs_label,
+  $rdfs_label,
   $skos_altLabel, 
 	$DateRDFUtils::nsobjects->{'wdt'}->P910, 
 	$DateRDFUtils::nsobjects->{'wdt'}->P6228,

@@ -2,6 +2,10 @@
 
 test: rm u1
 
+y74:
+	add_existing_rdf.pl -d -i sample_year_74AD.xml -o out_sample_year_74AD.xml > out_sample_year_74AD.log 
+
+
 utf:
 	run_add_existing.sh -d -S 0 -L 0 sample_year.rdf
 
@@ -28,7 +32,7 @@ loopu1:
 	done
 	grep -c abe1 loopu1
 
-## run in test-mode (-t)
+
 t:
 	out=out_BC10_JUSTECHO_$$(date +%F_%Hh%Mm%Ss).rdf && \
 	add_existing_rdf.pl -t -i BC10earlier_result.rdf -o $$out | tee out.BC10_JUSTECHO.log && \
