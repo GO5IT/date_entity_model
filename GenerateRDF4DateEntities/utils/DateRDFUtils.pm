@@ -36,19 +36,20 @@ our $MEDIATYPERDFXML = 'application/rdf+xml';
 ############## NAMESPACES: it is important that all NAMESPACE-Prefixes are managed here: 
 ############## they then can be used by RDF::Trine::Serializer
 our $namespacehash = {
-      dc => 'http://purl.org/dc/elements/',
+      dc      => 'http://purl.org/dc/elements/',
 	dcterms => 'http://purl.org/dc/terms/',
-	rdf => 'http://www.w3.org/1999/02/22-rdf-syntax-ns#',
-	rdfs => 'http://www.w3.org/2000/01/rdf-schema#',
-	skos => 'http://www.w3.org/2004/02/skos/core#',
-	time => 'http://www.w3.org/2006/time#',
-	xsd => 'http://www.w3.org/2001/XMLSchema#',
-	foaf => 'http://xmlns.com/foaf/0.1/' ,
-      owl => 'http://www.w3.org/2002/07/owl#',
-      dbo => 'http://dbpedia.org/ontology/',
-	prov => 'http://www.w3.org/ns/prov#',
-      wdt => 'http://www.wikidata.org/prop/direct/',
-      wdtn => 'http://www.wikidata.org/prop/direct-normalized/',
+	rdf     => 'http://www.w3.org/1999/02/22-rdf-syntax-ns#',
+	rdfs    => 'http://www.w3.org/2000/01/rdf-schema#',
+	skos    => 'http://www.w3.org/2004/02/skos/core#',
+	time    => 'http://www.w3.org/2006/time#',
+	xsd     => 'http://www.w3.org/2001/XMLSchema#',
+	foaf    => 'http://xmlns.com/foaf/0.1/' ,
+      owl     => 'http://www.w3.org/2002/07/owl#',
+      dbo     => 'http://dbpedia.org/ontology/',
+	prov    => 'http://www.w3.org/ns/prov#',
+      wdt     => 'http://www.wikidata.org/prop/direct/',
+      wdtn    => 'http://www.wikidata.org/prop/direct-normalized/',
+	schema  => 'http://schema.org/'
 };
 
 ## for each entry in $namespacehash: automatically create namespace objects trine-namespaces ... 
@@ -111,11 +112,11 @@ $useragent->default_header('Accept' => $DateRDFUtils::MEDIATYPERDFXML );
 ###################
 ##### ** THIS is the CENTRAL FUNCTION, which almost does the WHOLE JOB !!! **
 ###################
-## add_triples_from_external_sameAs ( $model, $parser, $sameas, $filter, $predstoadd, $tweak_urls, $tweak_subj, $tweak_pred, $tweak_obj $logtag, $opt_d, $log, $opt_S, $opt_L ) 
+## add_triples_from_external_sameAs ( $model, $parser, $sameas, $filterurl, $predstoadd, $tweak_urls, $tweak_subj, $tweak_pred, $tweak_obj $logtag, $opt_d, $log, $opt_S, $opt_L ) 
 ##
 ## How add_triples_from_external_sameAs works:
 ## 1) in $model: look for all $sameAs (i.e. skos:exactMatch or owl:sameAs) pointing to external URLs
-## 2) only proceed with those external URLS which match the string(s) mentioned in $filter 
+## 2) only proceed with those external URLS which match the string(s) mentioned in $filterurl 
 ## 3) retrieve data from external URL
 ## 4) add the predicates mentioned in $predstoadd from external URL to $model 
 ## 
@@ -123,15 +124,20 @@ $useragent->default_header('Accept' => $DateRDFUtils::MEDIATYPERDFXML );
 ## model	      A RDF::Trine::Model
 ## parser         A RDF::Trine::Parser
 ## sameas	      Predicate to use for determining "sameness" - e.g. skos:exactMatch or owl:sameAs
-## filter         A string used for further filtering down the statements found by searching for $sameas
-##	            e.g. "http://dbpedia.org" 
+## filterurl         A regex used for further filtering down the URLS found in $sameas
+##	            e.g. qr{http://dbpedia.org} 
 ## predstoadd     A arrayref enlisting all the predicates (found in the external resource) to be added to the $model;
 ##	            iff empty arrayref is added: add ALL predicates 
+## logtag         A string which is just used in the supply a tag which is used in the print-outs of the log. E.g. "DBpedia" 
 ## tweak_urls 	A hashref enlisting PATTERN => SUBSTITUTION pairs  which are applied to a URL before fetching it
 ## tweak_subj     A hashref enlisting PATTERN => SUBSTITUTION pairs  which are applied to a SUBJECTS before adding them to the TripleStore
 ## tweak_pred     A hashref enlisting PATTERN => SUBSTITUTION pairs  which are applied to a PREDICAT-values before adding them to the TripleStore
-## tweak_obj      A hashref enlisting PATTERN => SUBSTITUTION pairs  which are applied to a OBJECT-values   before adding them to the TripleStore          
-## logtag         A string which is just used in the supply a tag which is used in the print-outs of the log. E.g. "DBpedia" 
+## tweak_obj      A hashref enlisting PATTERN => SUBSTITUTION pairs  which are applied to a OBJECT-values   before adding them to the TripleStore 
+## add_about      Predicate object: iff supplied then search for <SUBJ> <add_about> <URL>: 
+##                                      iff <URL> matches <add_abouts_if_they_match>:                                          
+##                                           add <URL> <add_abouts_as> <SUBJ> 
+## add_abouts_if_they_match  A regex for filtering down <URLS> found in add_about 
+## add_abouts_as  : the predicate name which is to be used for adding predicates when they match add_abouts_if_they_match       
 ## opt_d          Debug flag
 ## log            A logging-object : a hashref for collecting the log-info.
 ## opt_S          Skip number of subjects (for testing)
@@ -140,13 +146,16 @@ sub add_triples_from_external_sameAs {
    my $model      = shift; 
    my $parser     = shift;  
    my $sameas     = shift;   
-   my $filter     = shift;   
+   my $filterurl     = shift;   
    my $predstoadd = shift; 
    my $logtag     = shift;
    my $tweak_urls = shift;
    my $tweak_subj = shift;
    my $tweak_pred = shift;
-   my $tweak_obj  = shift; 
+   my $tweak_obj  = shift;
+   my $add_about  = shift;
+   my $add_abouts_if_they_match = shift;
+   my $add_abouts_as = shift; 
    my $opt_d      = shift;   
    my $log        = shift;
    my $opt_S      = shift;
@@ -193,8 +202,8 @@ sub add_triples_from_external_sameAs {
           my $sub  = $st->subject;
           my $pred = $st->predicate;
           my $obj  = $st->object;  
-          ### only consider objects which match $filter 
-          if ($obj->as_string =~ m{$filter}) {
+          ### only consider objects (URIs) which match $filterurl 
+          if ( $obj->as_string =~ $filterurl ) {
                print join("\t", "\t$logtag: selected as external reference:", $pred->as_string, $obj->as_string, "\n") if ($opt_d);
           } else {
               print join("\t", "\t$logtag: neglected as external reference:", $pred->as_string, $obj->as_string, "\n") if ($opt_d);
@@ -236,6 +245,36 @@ sub add_triples_from_external_sameAs {
 		    $llog->{ '1_error' } .= "|$error|" ;       
 		    next SAMEAS;   
 		};
+
+
+## add_about      Predicate object: iff supplied then search for <SUBJ> <add_about> <URL>: 
+##                                      iff <URL> matches <add_abouts_if_they_match>:                                          
+##                                           add <URL> <add_abouts_as> <SUBJ> 
+## add_abouts_if_they_match  A regex:
+## add_abouts_as  : the predicate name which is to be used for adding predicates when they match add_abouts_if_they_match 
+
+	    if ($add_about) {
+	      my $aboutiter = $localmodel->get_statements(undef, $add_about, undef);
+            ABOUT: while (my $lst = $aboutiter->next) {
+		  my $lsub  = $lst->subject;
+    	        my $lpred = $lst->predicate;
+    	        my $lobj  = $lst->object;
+              if ( $lobj->equal($obj) or ( $tweak_url_subj && $lobj->equal($tweak_url_subj) ))  {
+                 ## optional additional filter
+		     next ABOUT if ( $add_abouts_if_they_match && $lsub->as_string() !~ $add_abouts_if_they_match);
+                 print "\n$logtag\tLABOUT MATCHES: ". $lobj->as_string() . "\n" if ($opt_d);          
+	        } else {		        
+                 print "\t$logtag\tLABOUT does not match: ". $lobj->as_string() . " -> ignored\n" if ($opt_d); 
+		     next ABOUT;
+              }
+              if ($opt_d) {
+		           print join("\t", "$logtag:", "URL from ABOUT was added:", $subject->uri_value, $add_abouts_as->as_string, $lsub->uri_value, "\n");
+	        }
+              ## if it survived all filters: add to $model
+              $model->add_statement( RDF::Trine::Statement->new($subject, $add_abouts_as, $lsub) );
+	      } # while ABOUT
+	    }
+          
           ### now extract ALL relevant triples for localmodel        
           print "\nSTATS\t$logtag\tNumber of RDF - statements in LOCAL model: " . $localmodel->size . "\n" if ($opt_d); 
           my $localiter = $localmodel->get_statements(undef, undef, undef);
@@ -256,7 +295,7 @@ sub add_triples_from_external_sameAs {
 
               if ( $lsub->equal($obj) or ( $tweak_url_subj && $lsub->equal($tweak_url_subj) ))  {
                       print "\n$logtag\tLSUBJECT MATCHES: ". $lsub->as_string() . "\n" if ($opt_d);          
-	      } else {		        
+	        } else {		        
                       print "\t$logtag\tLSUBJECT does not match: ". $lsub->as_string() . " -> ignored\n" if ($opt_d); 
 		      next TRIPLE;
               }

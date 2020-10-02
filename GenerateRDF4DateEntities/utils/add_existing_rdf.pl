@@ -17,13 +17,12 @@ use utf8;
 ## text printed to STDOUT is binary data encoded in UTF-8. Therfore STDOUT is kept as binary stram.
 binmode STDOUT, ":encoding(utf-8)" or die "Cannot set utf-8-mode to STDOUT\n";
 
-
 my $DEFAULTLOG="add_existing_log.csv";
 
-my $base_uri="http:://foo"; ## ?  
+## not sure what this is supposed to be, but $parser->parse_file_into_model() requires _some_ base_uri as one of its arguments
+my $base_uri="http:://foo"; 
 
-# my $DEFAULTURL='http://dbpedia.org/resource/563_BC';
-## a url with https: I had major problems with this one !!! 
+## a url with https: I first had major problems with this one -> some apache?-libraries had been missing
 my $DEFAULTURL='https://www.wikidata.org/wiki/Q2485';
 my $MEDIATYPE='application/rdf+xml';
 
@@ -34,18 +33,6 @@ my $MEDIATYPE='application/rdf+xml';
 ##my $pred = $foaf->name;
 ### alternatively:
 ### my $pred = RDF::Trine::Node::Resource->new('http://xmlns.com/foaf/0.1/name');
-## 
-##print "pred as string: " . $pred->as_string . "\n"; # exit; 
-
-###print Dumper $DateRDFUtils::namespacehash->{'foaf'};
-
-#print "==nsobjects==\n";
-#print Dumper %$DateRDFUtils::nsobjects;
-
-# Create a node object for skos-exactMatch property
-# my $pred = $foaf->name;
-#my $skosNS = $DateRDFUtils::nsobjects->{'skos'};
-
 
 ### create useful predicate-names
 ## Specify predicates to fetch from DBpedia in the two blocks below
@@ -53,8 +40,9 @@ my $rdfs_label        = $DateRDFUtils::nsobjects->{'rdfs'}->label;
 my $skos_exactmatch   = $DateRDFUtils::nsobjects->{'skos'}->exactMatch;
 my $owl_sameas        = $DateRDFUtils::nsobjects->{'owl'}->sameAs;
 my $dbo_abstract      = $DateRDFUtils::nsobjects->{'dbo'}->abstract;
-#my $foaf_primarytopic = $DateRDFUtils::nsobjects->{'foaf'}->isPrimaryTopicOf;
+my $foaf_primarytopic = $DateRDFUtils::nsobjects->{'foaf'}->isPrimaryTopicOf;
 my $skos_altLabel     = $DateRDFUtils::nsobjects->{'skos'}->altLabel;
+my $schema_about      = $DateRDFUtils::nsobjects->{'schema'}->about;
 
 my $checkinDBPedia  = [  
    $owl_sameas,
@@ -115,7 +103,6 @@ USAGE $0 (-h) (-d) (-i <INPUTFILE>) (-o <OUTPUTFILE>) (-l <LOGFILE>) (-t)
 	     there is NO fetching from external links; 
 	     it only will print some settings and exit. 
 	     
-
 -d           Debug mode: print excessive information to <STDOUT> 
 
 -h           Print this message
@@ -175,8 +162,7 @@ if ($opt_t) {
 	print "parser->media_types = " . $parser->media_types . "\n"; 
  
         print "== Parser for media_type $MEDIATYPE :\n";
-        print $parser->parser_by_media_type( $MEDIATYPE ) . "\n\n";
-      
+        print $parser->parser_by_media_type( $MEDIATYPE ) . "\n\n";     
 }
 
 # load the -i <infile> into a model, or load from web-source using -u <url>
@@ -210,33 +196,35 @@ if ($opt_d && !$fhi) {
   exit;
 }
 
-
-## almost the whole logic is packed into THIS function
-## add_triples_from_external_sameAs ( $model, $parser, $sameas, $filter, $predstoadd, $tweak_urls, $tweak_subj, $tweak_pred, $tweak_obj $logtag, $opt_d, $log, $opt_S, $opt_L ) 
-## call it twice: 
-## The first run will search for skos:exactMatch which point to 'http://dbpedia.org' and fetch the appropriate triples ($checkinDBPedia) from there
-## these also include owl:sameAs for wikidata 
-## The second run will  follow all them $owl_sameas which point to  '//www.wikidata.org' and fetch the appropriate triples ($checkinWikidata) from there
+###################
+##### ** THIS is the CENTRAL FUNCTION, which almost does the WHOLE JOB !!! **
+###################
+## add_triples_from_external_sameAs ( $model, $parser, $sameas, $filterurl, $predstoadd, $tweak_urls, $tweak_subj, $tweak_pred, $tweak_obj $logtag, $opt_d, $log, $opt_S, $opt_L ) 
 ##
 ## How add_triples_from_external_sameAs works:
 ## 1) in $model: look for all $sameAs (i.e. skos:exactMatch or owl:sameAs) pointing to external URLs
-## 2) only proceed with those external URLS which match the string(s) mentioned in $filter 
+## 2) only proceed with those external URLS which match the string(s) mentioned in $filterurl 
 ## 3) retrieve data from external URL
 ## 4) add the predicates mentioned in $predstoadd from external URL to $model 
 ## 
 ## Arguments:
 ## model	      A RDF::Trine::Model
-## parser             A RDF::Trine::Parser
-## sameas	      Predicate to use for determining "sameness" - e.g. skos:axactMatch or owl:sameAs
-## filter             A string used for further filtering down the statements found by searching for $sameas
-##	            e.g. "http://dbpedia.org" 
-## predstoadd        A arrayref enlisting all the predicates (found in the external resource) to be added to the $model;
+## parser         A RDF::Trine::Parser
+## sameas	      Predicate to use for determining "sameness" - e.g. skos:exactMatch or owl:sameAs
+## filterurl         A regex used for further filtering down the URLS found in $sameas
+##	            e.g. qr{http://dbpedia.org} 
+## predstoadd     A arrayref enlisting all the predicates (found in the external resource) to be added to the $model;
 ##	            iff empty arrayref is added: add ALL predicates 
-## tweak_urls 	  A hashref enlisting PATTERN => SUBSTITUTION pairs  which are applied to a URL before fetching it
+## logtag         A string which is just used in the supply a tag which is used in the print-outs of the log. E.g. "DBpedia" 
+## tweak_urls 	A hashref enlisting PATTERN => SUBSTITUTION pairs  which are applied to a URL before fetching it
 ## tweak_subj     A hashref enlisting PATTERN => SUBSTITUTION pairs  which are applied to a SUBJECTS before adding them to the TripleStore
 ## tweak_pred     A hashref enlisting PATTERN => SUBSTITUTION pairs  which are applied to a PREDICAT-values before adding them to the TripleStore
-## tweak_obj      A hashref enlisting PATTERN => SUBSTITUTION pairs  which are applied to a OBJECT-values   before adding them to the TripleStore          
-## logtag         A string which is just used in the supply a tag which is used in the print-outs of the log. E.g. "DBpedia" 
+## tweak_obj      A hashref enlisting PATTERN => SUBSTITUTION pairs  which are applied to a OBJECT-values   before adding them to the TripleStore 
+## add_about      Predicate object: iff supplied then search for <SUBJ> <add_about> <URL>: 
+##                                      iff <URL> matches <add_abouts_if_they_match>:                                          
+##                                           add <URL> <add_abouts_as> <SUBJ> 
+## add_abouts_if_they_match  A regex for filtering down <URLS> found in add_about 
+## add_abouts_as  : the predicate name which is to be used for adding predicates when they match add_abouts_if_they_match       
 ## opt_d          Debug flag
 ## log            A logging-object : a hashref for collecting the log-info.
 ## opt_S          Skip number of subjects (for testing)
@@ -248,39 +236,13 @@ if ($opt_t) {
    print "\t# Because of -t (test-mode) we are skipping all the fetching of external links and only read- and write the input!\n\n";
 } else {
 	## 1st run: dbpedia
-	DateRDFUtils::add_triples_from_external_sameAs ( $model, $parser, $skos_exactmatch, 'http://dbpedia.org' , $checkinDBPedia, "01_DBPedia", $DateRDFUtils::tweak_urls_dbpedia, {}, {}, {}, $opt_d, $log, $opt_S, $opt_L ); 
+	DateRDFUtils::add_triples_from_external_sameAs ( $model, $parser, $skos_exactmatch, qr{http://dbpedia.org} , $checkinDBPedia, "01_DBPedia", $DateRDFUtils::tweak_urls_dbpedia, {}, {}, {}, "", "", "", $opt_d, $log, $opt_S, $opt_L ); 
 	## 2nd run: wikidata
-	DateRDFUtils::add_triples_from_external_sameAs ( $model, $parser, $owl_sameas, '//www.wikidata.org' , $checkinWikidata, "02_Wikidata", {}, {}, {}, $DateRDFUtils::tweak_obj_wdata, $opt_d, $log, $opt_S, $opt_L );
-	## 3rd run (ie. 3rd traversal of websites) onward can be added below, using the same line above and change the URL
-      ## ...
+	DateRDFUtils::add_triples_from_external_sameAs ( $model, $parser, $owl_sameas, qr{//www.wikidata.org} , $checkinWikidata, "02_Wikidata", {}, {}, {}, $DateRDFUtils::tweak_obj_wdata, $schema_about, qr{(en|de|fr).wikipedia.org/wiki}, $foaf_primarytopic, $opt_d, $log, $opt_S, $opt_L );
+
+	## 3rd run; wikipedia (added via the about-mechanism from wikidata 
+	## DateRDFUtils::add_triples_from_external_sameAs ( $model, $parser, $foaf_primarytopic, 'wikipedia.org' , $checkinWikidata, "03_Wikipedia", {}, {}, {}, $DateRDFUtils::tweak_obj_wdata, $schema_about, qr{(en|de|fr).wikipedia.org/wiki}, $foaf_primarytopic, $opt_d, $log, $opt_S, $opt_L );
  }
-
-
-
-##### serialize the model to either outfile or to standard-output
-## the only way that worked: explicitely decode UTF-8 and write to a 'binary' stream 
-## ATTENTION: only "utf8" (the loose, non-strict version) works; the strict "UTF-8" does NOT work:
-## Cf.   https://perldoc.perl.org/Encode.html
-
-
-#my $fhox;
-#my $fhox2;
-#my $fhox4;
-#my $fhox5;
-#my $fhox6;
-
-
-#open($fhox2, ">", "out_2BC10_XX_binmode_utf8_deco.rdf");
-#binmode($fhox2, ":encoding(utf-8)") or die "Cannot set fhox to binmode!\n";
-#print $fhox2 $outstring_deco;
-#close($fhox2);
-
-
-#### RAW
-#open($fhox4, ">", "out_4BC10_XX_binmode_raw_plain.rdf");
-#binmode($fhox4) or die "Cannot set fhox4 to binmode raw!\n";
-#print $fhox4 $outstring_plainplain;
-#close($fhox4);
 
 
 ###### original !!! 
@@ -309,26 +271,7 @@ if ($fho)   { close($fho); };
 if ($fhlog) { close($fhlog); }
 if ($fhlogdump) { close($fhlogdump); }
 
-## ======================= END MAIN ==============================
 
-## Create namespace objects
-###   ### now in: $DateRDFUtils::namespacehash;  
-#my $dc=RDF::Trine::Namespace->new('http://purl.org/dc/elements/');
-#my $dcterms=RDF::Trine::Namespace->new('http://purl.org/dc/terms/');
-#my $rdf=RDF::Trine::Namespace->new('http://www.w3.org/1999/02/22-rdf-syntax-ns#');
-#my $rdfs=RDF::Trine::Namespace->new('http://www.w3.org/2000/01/rdf-schema#');
-#my $skos=RDF::Trine::Namespace->new('http://www.w3.org/2004/02/skos/core#');
-#my $time=RDF::Trine::Namespace->new('http://www.w3.org/2006/time#');
-#my $xsd=RDF::Trine::Namespace->new('http://www.w3.org/2001/XMLSchema#');
-#my $foaf = RDF::Trine::Namespace->new( 'http://xmlns.com/foaf/0.1/' );
-
-#### namespaces in serialisation.
-#The valid key-values used in %options are specific to a particular serializer implementation. For serializers that support namespace declarations (to allow more concise serialization), use namespaces => \%namespaces in %options, where the keys of %namespaces are namespace names and the values are (partial) URIs. For serializers that support base URI declarations, use base_uri => $base_uri .
-
-
-# alternatively:
-# my $pred = RDF::Trine::Node::Resource->new('http://xmlns.com/foaf/0.1/name');
- 
 ######################## END MAIN #########################
 
 
