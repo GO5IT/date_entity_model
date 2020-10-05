@@ -238,7 +238,8 @@ if ($opt_t) {
 	## 1st run: dbpedia
 	DateRDFUtils::add_triples_from_external_sameAs ( $model, $parser, $skos_exactmatch, qr{http://dbpedia.org} , $checkinDBPedia, "01_DBPedia", $DateRDFUtils::tweak_urls_dbpedia, {}, {}, {}, "", "", "", $opt_d, $log, $opt_S, $opt_L ); 
 	## 2nd run: wikidata
-	DateRDFUtils::add_triples_from_external_sameAs ( $model, $parser, $owl_sameas, qr{//www.wikidata.org} , $checkinWikidata, "02_Wikidata", {}, {}, {}, $DateRDFUtils::tweak_obj_wdata, $schema_about, qr{(en|de|fr).wikipedia.org/wiki}, $foaf_primarytopic, $opt_d, $log, $opt_S, $opt_L );
+	#DateRDFUtils::add_triples_from_external_sameAs ( $model, $parser, $owl_sameas, qr{//www.wikidata.org} , $checkinWikidata, "02_Wikidata", {}, {}, {}, $DateRDFUtils::tweak_obj_wdata, $schema_about, qr{(en|de|fr).wikipedia.org/wiki}, $foaf_primarytopic, $opt_d, $log, $opt_S, $opt_L );
+  DateRDFUtils::add_triples_from_external_sameAs ( $model, $parser, $owl_sameas, qr{//www.wikidata.org} , $checkinWikidata, "02_Wikidata", {}, {}, {}, $DateRDFUtils::tweak_obj_wdata, $schema_about, qr{(en).wikipedia.org/wiki}, $foaf_primarytopic, $opt_d, $log, $opt_S, $opt_L );
 
 	## 3rd run; wikipedia (added via the about-mechanism from wikidata 
 	## DateRDFUtils::add_triples_from_external_sameAs ( $model, $parser, $foaf_primarytopic, 'wikipedia.org' , $checkinWikidata, "03_Wikipedia", {}, {}, {}, $DateRDFUtils::tweak_obj_wdata, $schema_about, qr{(en|de|fr).wikipedia.org/wiki}, $foaf_primarytopic, $opt_d, $log, $opt_S, $opt_L );

@@ -1,3 +1,5 @@
+export SHELL := /bin/bash
+
 ## testing utf-encoding
 
 test: rm u1
@@ -23,15 +25,36 @@ u1:
 	add_existing_rdf.pl -i sample_year_BC10.rdf -o $$out > out.BC10_1.log && \
 	md5sum $$out 
 
-loopu1:
-	echo "" > loopu1.txt;
-	for i in 1 2 3 4 5 6 7 8 9 10; do echo "== $$i =="; \
-	out=out_BC10_1_$$(date +%F_%Hh%Mm%Ss).rdf; \
-	add_existing_rdf.pl -i sample_year_BC10.rdf -o $$out > out.BC10_1.log;  \
-	md5sum $$out >> loopu1; \
-	done
-	grep -c abe1 loopu1
+test10fetch:
+	dat=$$(date +%F_%Hh%Mm); m5=test10_md5_$$dat.txt; he=test10_hebrew_$$dat.txt; \
+	echo "" > $$m5; echo "" > $$he; \
+	for i in {1..10}; do \
+	echo "== $$i =="; \
+	out=out_test10_BC10_1_$${dat}_$${i}.rdf; \
+	add_existing_rdf.pl -i sample_year_BC10.rdf -o $$out > out_test10_BC10_1_$${dat}_$${i}.log;  \
+	md5sum $$out >> $$m5; \
+	done; \
+	grep 'xml:lang="he"' out_test10_BC10_1_$${dat}_*.rdf > $$he; \
+	echo -e "\n== Summary hebrew =="; \
+	cat $$he | cut -f 2 | sort | uniq -c; \
+	echo -e "\n== Summary md5 =="; \
+	cat $$m5 | cut -d ' ' -f 1 | grep -P '...'  sort | uniq -c; \
+	echo -e "\n\n"; \
+	
 
+test10sum:
+	@echo -e "\n== Summary hebrew ==";
+	@cut -f 2 test10_hebrew*txt |  sort | uniq -c; 
+	@echo -e "\n== Summary md5 ==";
+	@cut -d " " -f 1 test10_md5*txt | grep -P '...' |  sort | uniq -c;
+	@echo -e
+
+test10clean:
+	@echo -e "\n== Cleaning temporal files from test10 ...\n";
+	rm -v rm out_test10_* 
+	
+
+test10: test10fetch test10sum
 
 t:
 	out=out_BC10_JUSTECHO_$$(date +%F_%Hh%Mm%Ss).rdf && \

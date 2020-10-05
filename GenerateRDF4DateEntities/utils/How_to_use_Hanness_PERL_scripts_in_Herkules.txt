@@ -15,10 +15,19 @@ A) Script to generate Date Entities
 2. generate_xxxx_rdf.pl (e.g. generate_year_rdf.pl), which configure the data generation for the level of entity (year, month etc)
 3. DateRDFUtils.pm, a module which is imported to pl
 
+sample_${type}.rdf (name specified run_generate_tests.sh) will be generated as output
+
 B) Script to enrich Date Entities by adding more info from Linked Open Data (eg DBpedia and Wikidata)
 # Run the script with options
-./run_add_existing.sh (-h) (-d) (-S <SKIP_N>) (-L <LIMIT_M>) <RDF-XML-FILE>
-(example command: run_add_existing.sh -d -S 50 -L 5 ad1-100.rdf)
+./run_add_existing.sh (-h) (-d) (-S <SKIP_N>) (-L <LIMIT_M>) <INPUT RDF-FILE>
+(example command: run_add_existing.sh -d -S 50 -L 5 sample_year.rdf)
+
+	OPTIONS:
+	-S  <SKIP_N>         Skip <SKIP_N> years before starting to process
+	-L  <LIMIT_M>        Limit processing to a total of <LIMIT_M> years
+    	                 "0" means: there is NO limit
+	-d                   Debug mode
+	-h                   Print this message
 
 The new script generates the following files with the timestamp of their creation:
 1. .rdf : generated RDF file
