@@ -23,29 +23,30 @@ rm:
 u1:
 	out=out_BC10_1_$$(date +%F_%Hh%Mm%Ss).rdf && \
 	add_existing_rdf.pl -i sample_year_BC10.rdf -o $$out > out.BC10_1.log && \
-	md5sum $$out 
+	grep 'lang="mr"' $$out; \
+	md5sum $$out; 
 
 test10fetch:
-	dat=$$(date +%F_%Hh%Mm); m5=test10_md5_$$dat.txt; he=test10_hebrew_$$dat.txt; \
+	dat=$$(date +%F_%Hh%Mm); m5=test10_md5_$$dat.txt; he=test10_mr_$$dat.txt; \
 	echo "" > $$m5; echo "" > $$he; \
 	for i in {1..10}; do \
 	echo "== $$i =="; \
-	out=out_test10_BC10_1_$${dat}_$${i}.rdf; \
-	add_existing_rdf.pl -i sample_year_BC10.rdf -o $$out > out_test10_BC10_1_$${dat}_$${i}.log;  \
+	out=out_test10_AD74_$${dat}_$${i}.rdf; \
+	add_existing_rdf.pl -i sample_year_74AD.xml  -o $$out > out_test10_AD74_$${dat}_$${i}.log;  \
 	md5sum $$out >> $$m5; \
 	done; \
-	grep 'xml:lang="he"' out_test10_BC10_1_$${dat}_*.rdf > $$he; \
-	echo -e "\n== Summary hebrew =="; \
+	grep 'xml:lang="mr"' out_test10_AD74_$${dat}_*.rdf > $$he; \
+	echo -e "\n== Summary mr =="; \
 	cat $$he | cut -f 2 | sort | uniq -c; \
 	echo -e "\n== Summary md5 =="; \
-	cat $$m5 | cut -d ' ' -f 1 | grep -P '...'  sort | uniq -c; \
+	cat $$m5 | cut -d ' ' -f 1 | grep -P '...' | sort | uniq -c; \
 	echo -e "\n\n"; \
 	
 
 test10sum:
-	@echo -e "\n== Summary hebrew ==";
-	@cut -f 2 test10_hebrew*txt |  sort | uniq -c; 
-	@echo -e "\n== Summary md5 ==";
+	@echo -e "\n== Global Summary mr ==";
+	@cut -f 2 test10_mr*txt |  sort | uniq -c; 
+	@echo -e "\n== Global Summary md5 ==";
 	@cut -d " " -f 1 test10_md5*txt | grep -P '...' |  sort | uniq -c;
 	@echo -e
 

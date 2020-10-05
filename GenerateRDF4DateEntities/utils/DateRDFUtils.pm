@@ -142,6 +142,9 @@ $useragent->default_header('Accept' => $DateRDFUtils::MEDIATYPERDFXML );
 ## log            A logging-object : a hashref for collecting the log-info.
 ## opt_S          Skip number of subjects (for testing)
 ## opt_L          Limit number of subjects (for testing)
+## serializer     Serializer for output: iff it is supplied and iff $opt_d all temporal local models will be printed to $fho 
+## fho            Filehandle for output: iff it is supplied and iff $opt_d all temporal local models will be printed to $fho 
+
 sub add_triples_from_external_sameAs {
    my $model      = shift; 
    my $parser     = shift;  
@@ -160,6 +163,8 @@ sub add_triples_from_external_sameAs {
    my $log        = shift;
    my $opt_S      = shift;
    my $opt_L	= shift;
+   my $serializer = shift;
+   my $fho = shift;
 
    my $modelsize_before = 0;
    my $modelsize_after = 0;      
@@ -230,8 +235,14 @@ sub add_triples_from_external_sameAs {
           ## cf.  https://perlmaven.com/fatal-errors-in-external-modules
           eval {
 		     # code that might throw exception
-		     $lresponse = $parser->parse_url_into_model( $tweaked_obj_uri, $localmodel, content_cb => \&content_callback );
+		     # $lresponse = $parser->parse_url_into_model( $tweaked_obj_uri, $localmodel, content_cb => \&content_callback );
+                 $lresponse = $parser->parse_url_into_model( $tweaked_obj_uri, $localmodel );
                  print "$logtag:\t\tparse_url_into_model() SUCCESS:\t" . $tweaked_obj_uri . "\n";
+	           ## DEBUGGING! 
+#	           if ($serializer && $fho && $opt_d) {
+#                        print $fho "<!-- == LMODEL (before) for: $tweaked_obj_uri == -->\n"; 
+#				print $fho $serializer->serialize_model_to_string($localmodel);			
+#			}
 		     1;  # always return true to indicate success
 		}
 		or do {
@@ -326,7 +337,8 @@ sub add_triples_from_external_sameAs {
            $llog->{ '2_triple-subj' }     = $triplecount_subj;
            $llog->{ '3_triple-selected' } = $triplecount_selected;
            $llog->{ '4_triple-actually_inserted' } = $actually_inserted;
-          } # SAMEAS  
+          } # SAMEAS
+ 
   } # SUBJECT
  print "STATS\t$logtag\tNumber of RDF - statements in model AFTER: " . $model->size . "\n";
 }

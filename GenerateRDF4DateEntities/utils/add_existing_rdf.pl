@@ -229,6 +229,7 @@ if ($opt_d && !$fhi) {
 ## log            A logging-object : a hashref for collecting the log-info.
 ## opt_S          Skip number of subjects (for testing)
 ## opt_L          Limit number of subjects (for testing)
+## fho            Filehandle for output: iff it is supplied and iff $opt_d all temporal local models will be printed to $fho  
 
 my $log = {}; 
 
@@ -236,10 +237,10 @@ if ($opt_t) {
    print "\t# Because of -t (test-mode) we are skipping all the fetching of external links and only read- and write the input!\n\n";
 } else {
 	## 1st run: dbpedia
-	DateRDFUtils::add_triples_from_external_sameAs ( $model, $parser, $skos_exactmatch, qr{http://dbpedia.org} , $checkinDBPedia, "01_DBPedia", $DateRDFUtils::tweak_urls_dbpedia, {}, {}, {}, "", "", "", $opt_d, $log, $opt_S, $opt_L ); 
+	DateRDFUtils::add_triples_from_external_sameAs ( $model, $parser, $skos_exactmatch, qr{http://dbpedia.org} , $checkinDBPedia, "01_DBPedia", $DateRDFUtils::tweak_urls_dbpedia, {}, {}, {}, "", "", "", $opt_d, $log, $opt_S, $opt_L, $serializer, $fho ); 
 	## 2nd run: wikidata
 	#DateRDFUtils::add_triples_from_external_sameAs ( $model, $parser, $owl_sameas, qr{//www.wikidata.org} , $checkinWikidata, "02_Wikidata", {}, {}, {}, $DateRDFUtils::tweak_obj_wdata, $schema_about, qr{(en|de|fr).wikipedia.org/wiki}, $foaf_primarytopic, $opt_d, $log, $opt_S, $opt_L );
-  DateRDFUtils::add_triples_from_external_sameAs ( $model, $parser, $owl_sameas, qr{//www.wikidata.org} , $checkinWikidata, "02_Wikidata", {}, {}, {}, $DateRDFUtils::tweak_obj_wdata, $schema_about, qr{(en).wikipedia.org/wiki}, $foaf_primarytopic, $opt_d, $log, $opt_S, $opt_L );
+  DateRDFUtils::add_triples_from_external_sameAs ( $model, $parser, $owl_sameas, qr{//www.wikidata.org} , $checkinWikidata, "02_Wikidata", {}, {}, {}, $DateRDFUtils::tweak_obj_wdata, $schema_about, qr{(en).wikipedia.org/wiki}, $foaf_primarytopic, $opt_d, $log, $opt_S, $opt_L, $serializer, $fho );
 
 	## 3rd run; wikipedia (added via the about-mechanism from wikidata 
 	## DateRDFUtils::add_triples_from_external_sameAs ( $model, $parser, $foaf_primarytopic, 'wikipedia.org' , $checkinWikidata, "03_Wikipedia", {}, {}, {}, $DateRDFUtils::tweak_obj_wdata, $schema_about, qr{(en|de|fr).wikipedia.org/wiki}, $foaf_primarytopic, $opt_d, $log, $opt_S, $opt_L );
