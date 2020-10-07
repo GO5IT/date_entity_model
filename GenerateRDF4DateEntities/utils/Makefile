@@ -32,7 +32,7 @@ test10fetch:
 	for i in {1..10}; do \
 	echo "== $$i =="; \
 	out=out_test10_AD74_$${dat}_$${i}.rdf; \
-	add_existing_rdf.pl -i sample_year_74AD.xml  -o $$out > out_test10_AD74_$${dat}_$${i}.log;  \
+	add_existing_rdf.pl -d -i sample_year_74AD.xml  -o $$out > out_test10_AD74_$${dat}_$${i}.log;  \
 	md5sum $$out >> $$m5; \
 	done; \
 	grep 'xml:lang="mr"' out_test10_AD74_$${dat}_*.rdf > $$he; \

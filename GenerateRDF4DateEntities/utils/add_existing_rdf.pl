@@ -26,6 +26,12 @@ my $base_uri="http:://foo";
 my $DEFAULTURL='https://www.wikidata.org/wiki/Q2485';
 my $MEDIATYPE='application/rdf+xml';
 
+## processing-steps 
+## list of _known_ steps 
+my @KNOWNSTEPS=("01_DBPedia", "02_Wikidata");
+## default list of steps (comma separated string)
+my $DEFAULTSTEPS="01_DBPedia,02_Wikidata";
+
 ### Create a namespace object for the foaf vocabulary
 ##my $foaf = RDF::Trine::Namespace->new( 'http://xmlns.com/foaf/0.1/' );
 ## 
@@ -62,8 +68,8 @@ my $checkinWikidata = [
 	$DateRDFUtils::nsobjects->{'wdtn'}->P646,
  ];
 
-our ($opt_h, $opt_d, $opt_i,$opt_o,$opt_l,$opt_u,$opt_t,$opt_L, $opt_S, $opt_b);
-getopts('hdi:o:l:u:tL:S:b:');
+our ($opt_h, $opt_d, $opt_i,$opt_o,$opt_l,$opt_u,$opt_t,$opt_L, $opt_S, $opt_b, $opt_r);
+getopts('hdi:o:l:u:tL:S:b:r:');
 
 ## make opt_L and opt_S numeric.
 $opt_L = 0 unless $opt_L;
@@ -82,6 +88,10 @@ USAGE $0 (-h) (-d) (-i <INPUTFILE>) (-o <OUTPUTFILE>) (-l <LOGFILE>) (-t)
 
 -o <OUTPUTFILE>
              If -o is not supplied, will write to <STDOUT>
+
+-r <STEPStoRUN> Comma separated list of processing steps 
+	    DEFAULT: $DEFAULTSTEPS 
+
 
 -u <URL> 
 	    Fetch RDF from URL iff -i <INPUTFILE>
@@ -116,9 +126,18 @@ if ($opt_h) {
   exit;
 }
 
+my @processingsteps = $opt_r ? split(/,/, $opt_r) : split(/,/, $DEFAULTSTEPS); 
 my $logfile = $opt_l ? $opt_l : $DEFAULTLOG;
 my $logfiledump = "$logfile.dump";  ## name of the dumpfile - will be derived from logfilename
 my $url = $opt_u ? $opt_u : $DEFAULTURL;
+
+## check steps: 
+foreach my $step (@processingsteps) {
+  if ( ! grep(/$step/, @KNOWNSTEPS) ) {
+	print "\nProcessing step now known: $step -- it must be one (or more) of " . join(" ", @KNOWNSTEPS) . "\n";
+	die;
+  }
+}
 
 if ($opt_d) {
   print "checkinDBPedia:\n";
@@ -237,13 +256,21 @@ if ($opt_t) {
    print "\t# Because of -t (test-mode) we are skipping all the fetching of external links and only read- and write the input!\n\n";
 } else {
 	## 1st run: dbpedia
-	DateRDFUtils::add_triples_from_external_sameAs ( $model, $parser, $skos_exactmatch, qr{http://dbpedia.org} , $checkinDBPedia, "01_DBPedia", $DateRDFUtils::tweak_urls_dbpedia, {}, {}, {}, "", "", "", $opt_d, $log, $opt_S, $opt_L, $serializer, $fho ); 
+	if (  grep(/01_DBPedia/,  @processingsteps ))  {
+	   DateRDFUtils::add_triples_from_external_sameAs ( $model, $parser, $skos_exactmatch, qr{http://dbpedia.org} , $checkinDBPedia, "01_DBPedia", $DateRDFUtils::tweak_urls_dbpedia, {}, {}, {}, "", "", "", $opt_d, $log, $opt_S, $opt_L, $serializer, $fho ); 
+        };
+
 	## 2nd run: wikidata
-	#DateRDFUtils::add_triples_from_external_sameAs ( $model, $parser, $owl_sameas, qr{//www.wikidata.org} , $checkinWikidata, "02_Wikidata", {}, {}, {}, $DateRDFUtils::tweak_obj_wdata, $schema_about, qr{(en|de|fr).wikipedia.org/wiki}, $foaf_primarytopic, $opt_d, $log, $opt_S, $opt_L );
-  DateRDFUtils::add_triples_from_external_sameAs ( $model, $parser, $owl_sameas, qr{//www.wikidata.org} , $checkinWikidata, "02_Wikidata", {}, {}, {}, $DateRDFUtils::tweak_obj_wdata, $schema_about, qr{(en).wikipedia.org/wiki}, $foaf_primarytopic, $opt_d, $log, $opt_S, $opt_L, $serializer, $fho );
+	if (  grep(/02_Wikidata/,  @processingsteps ))  {
+	     #DateRDFUtils::add_triples_from_external_sameAs ( $model, $parser, $owl_sameas, qr{//www.wikidata.org} , $checkinWikidata, "02_Wikidata", {}, {}, {}, $DateRDFUtils::tweak_obj_wdata, $schema_about, qr{(en|de|fr).wikipedia.org/wiki}, $foaf_primarytopic, $opt_d, $log, $opt_S, $opt_L );
+             DateRDFUtils::add_triples_from_external_sameAs ( $model, $parser, $owl_sameas, qr{//www.wikidata.org} , $checkinWikidata, "02_Wikidata", {}, {}, {}, $DateRDFUtils::tweak_obj_wdata, $schema_about, qr{(en).wikipedia.org/wiki}, $foaf_primarytopic, $opt_d, $log, $opt_S, $opt_L, $serializer, $fho );
+        } 
+
 
 	## 3rd run; wikipedia (added via the about-mechanism from wikidata 
+        ##  if (  grep(/03_Wikipedia/,  @processingsteps ))  {
 	## DateRDFUtils::add_triples_from_external_sameAs ( $model, $parser, $foaf_primarytopic, 'wikipedia.org' , $checkinWikidata, "03_Wikipedia", {}, {}, {}, $DateRDFUtils::tweak_obj_wdata, $schema_about, qr{(en|de|fr).wikipedia.org/wiki}, $foaf_primarytopic, $opt_d, $log, $opt_S, $opt_L );
+	## }
  }
 
 

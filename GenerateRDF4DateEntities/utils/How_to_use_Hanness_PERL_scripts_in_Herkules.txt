@@ -1,5 +1,10 @@
 How to use Hannes's PERL scripts in Herkules
 
+# If data processing would continue, after you switch your computer off, use a screen session. If not, ignore this part
+type: screen -S your_session_name
+leave the screen session by executing: ctrl + a + d
+return back to the screen session type: screen -r.
+
 # Docker to start
 docker-manage -e go-perl -a enter
 (OR shortcut is "perl-enter")
@@ -20,7 +25,7 @@ sample_${type}.rdf (name specified run_generate_tests.sh) will be generated as o
 B) Script to enrich Date Entities by adding more info from Linked Open Data (eg DBpedia and Wikidata)
 # Run the script with options
 ./run_add_existing.sh (-h) (-d) (-S <SKIP_N>) (-L <LIMIT_M>) <INPUT RDF-FILE>
-(example command: run_add_existing.sh -d -S 50 -L 5 sample_year.rdf)
+(example command: ./run_add_existing.sh -d -S 50 -L 5 sample_year.rdf)
 
 	OPTIONS:
 	-S  <SKIP_N>         Skip <SKIP_N> years before starting to process
