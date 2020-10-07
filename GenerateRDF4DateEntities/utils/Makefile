@@ -2,6 +2,11 @@ export SHELL := /bin/bash
 
 ## testing utf-encoding
 
+## run ONLY dbpedia
+01dbp:
+	nohup run_add_existing_stepbystep.sh -d -r 01_DBPedia sample_year.rdf 
+
+
 test: rm u1
 
 y74:

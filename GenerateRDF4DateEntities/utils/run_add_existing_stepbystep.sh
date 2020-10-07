@@ -32,7 +32,7 @@ OPTIONS:
 
 -r  <PROCESSING_STEP> 
 		    Choose from: 01_DBPedia, 02_Wikidata
-		    Will be passed to 
+		    Will be passed: to $SCRIPT
 
 -S  <SKIP_N>         Skip <SKIP_N> years before starting to process
 		
@@ -42,6 +42,10 @@ OPTIONS:
 -d                   Debug mode
 
 -h                   Print this message
+
+ALSO SEE:
+ 
+ $SCRIPT
 
 EOF
 }
