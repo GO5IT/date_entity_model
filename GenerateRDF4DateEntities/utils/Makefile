@@ -6,7 +6,22 @@ export SHELL := /bin/bash
 01dbp:
 	nohup run_add_existing_stepbystep.sh -d -r 01_DBPedia sample_year.rdf 
 
+## run 02_Wikidata _only_ for the first 2.100 years; these should be unproblematic!
+02base:
+	nohup run_add_existing_stepbystep.sh -d -r 02_Wikidata \
+	       -S 0 -L 2100 \
+       	       out_01_DBPedia2020-10-07_14h34m_0_0_sample_year.rdf
 
+### continue running 02_Wikidata on result of 02base
+02cont:
+	nohup run_add_existing_stepbystep.sh -d -r 02_Wikidata \
+               -S 2099  -L 0 \
+	       out_02_Wikidata2020-10-08_10h01m_0_2100_out_01_DBPedia2020-10-07_14h34m_0_0_sample_year.rdf
+
+## look for foreign characters
+peek:
+	grep '\@m' log_02_Wikidata2020-10-08_12h02m_2099_0_out_02_Wikidata2020-10-08_10h01m_0_2100_out_01_DBPedia2020-10-07_14h34m_0_0_sample_year.rdf.txt | tail
+	
 test: rm u1
 
 y74:
