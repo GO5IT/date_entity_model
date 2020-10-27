@@ -1,9 +1,10 @@
-How to use Hannes's PERL scripts in Herkules
+How to use Hannes's PERL scripts in Herkules to produce Linked Open Date Entities in RDF
 
 # If data processing would continue, after you switch your computer off, use a screen session. If not, ignore this part
 type: screen -S your_session_name
 leave the screen session by executing: ctrl + a + d
 return back to the screen session type: screen -r.
+to kill a screen, type: exit
 
 # Docker to start
 docker-manage -e go-perl -a enter
@@ -15,7 +16,9 @@ docker-manage -e go-perl -a build
 # Run script from anywhere, but be awere three files are needed in the same folder to run it. Normally the default path is /home/go/Date_Entity_Model/GenerateRDF4DateEntities/utils
 
 
-A) Script to generate Date Entities 
+A) Script to generate Date Entities (rdf/xml)
+See https://redmine.acdh.oeaw.ac.at/issues/17311
+
 1. run_generate_tests.sh, the main script to run
 2. generate_xxxx_rdf.pl (e.g. generate_year_rdf.pl), which configure the data generation for the level of entity (year, month etc)
 3. DateRDFUtils.pm, a module which is imported to pl
@@ -23,6 +26,8 @@ A) Script to generate Date Entities
 sample_${type}.rdf (name specified run_generate_tests.sh) will be generated as output
 
 B) Script to enrich Date Entities by adding more info from Linked Open Data (eg DBpedia and Wikidata)
+See details: https://redmine.acdh.oeaw.ac.at/issues/17474 (The success rate of this script is 50%+ for unknown technical problems for chracter encoding. It would be best to split the complete task into a couple of subtasks in order to avoid repeating them. In particular, DBpedia and Wikdiata can be done step by step)
+
 # Run the script with options
 ./run_add_existing.sh (-h) (-d) (-S <SKIP_N>) (-L <LIMIT_M>) <INPUT RDF-FILE>
 (example command: ./run_add_existing.sh -d -S 50 -L 5 sample_year.rdf)
@@ -39,3 +44,9 @@ The new script generates the following files with the timestamp of their creatio
 2. .csv log-info provide info about statistics of processing
 3. csv.dump : the same info as .csv but in a format similar to .json -> useers can ignore / DELETE
 4. log...txt : most detailed logging during processing: it records many of the decisions and is valuable in the case Hannes need to debug. -> Users can ignore / but NOT delete
+
+
+----
+# After rdf/xml is generated, it could be transformed to another format such as turtle (ttl) that would be handier.
+See the bottom of https://redmine.acdh.oeaw.ac.at/projects/acdh-oeaw/wiki/Managing_SKOS_vocabularies_with_Skosmos
+riot format transformation tool is preinstalled in Jena Fuseki which works with a command line
