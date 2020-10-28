@@ -1,6 +1,24 @@
 export SHELL := /bin/bash
 
-## testing utf-encoding
+joinmon:
+	# output rfdfxml
+	time join_rdf_files.pl -O rdfxml -o MonAll.rdf  mon*rdf
+	# output turtle
+	time join_rdf_files.pl -O turtle -o MonAll.ttl  mon*rdf
+
+join:
+	# output rfdfxml
+	time join_rdf_files.pl -I rdfxml -O rdfxml -o joined_M-C-D-Y.rdf enriched_data/*rdf
+	# output turtle
+	time join_rdf_files.pl -I rdfxml -O turtle -o joined_M-C-D-Y.ttl enriched_data/*rdf
+
+rdf2ttl:
+	@echo -e "\n# Converting rdfxml to ttl using rdfpipe...\n"
+	rdfpipe -i xml -o turtle joined_M-C-D-Y.rdf > rdfpipe_joined_M-C-D-Y.ttl
+
+
+skosify:
+	skosify -f xml -F xml -o skosified_joined_M-C-D-Y.rdf joined_M-C-D-Y.rdf 2>&1 | tee skosify_$$(date +%F_%Hh%Mm).log
 
 ## run ONLY dbpedia
 01dbp:
