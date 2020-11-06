@@ -1,24 +1,38 @@
 export SHELL := /bin/bash
 
+## skosify requires exactly ONE file as input.
+## Therefore it is necessary to first join the rdf 
+## which is scattered over different files into one 
+## using: 
+##         join_rdf_files.pl
+
+## joining mon*rdf into MonAll.rdf 
 joinmon:
 	# output rfdfxml
 	time join_rdf_files.pl -O rdfxml -o MonAll.rdf  mon*rdf
-	# output turtle
-	time join_rdf_files.pl -O turtle -o MonAll.ttl  mon*rdf
+	# output turtle: NOT recommended ! EXTREMELY slow
+	# time join_rdf_files.pl -O turtle -o MonAll.ttl  mon*rdf
 
+## joining enriched_data/*rdf  
 join:
 	# output rfdfxml
-	time join_rdf_files.pl -I rdfxml -O rdfxml -o joined_M-C-D-Y.rdf enriched_data/*rdf
-	# output turtle
-	time join_rdf_files.pl -I rdfxml -O turtle -o joined_M-C-D-Y.ttl enriched_data/*rdf
+	time join_rdf_files.pl -I rdfxml -O rdfxml -o enriched_data/joined_M-C-D-Y3.rdf enriched_data/*rdf
+	# output turtle: NOT recommended ! EXTREMELY slow
+	# time join_rdf_files.pl -I rdfxml -O turtle -o joined_M-C-D-Y.ttl enriched_data/*rdf
 
-rdf2ttl:
+## for converting rdfxml to turtle use rdfpipe (very fast! and simple)
+convert:
 	@echo -e "\n# Converting rdfxml to ttl using rdfpipe...\n"
-	rdfpipe -i xml -o turtle joined_M-C-D-Y.rdf > rdfpipe_joined_M-C-D-Y.ttl
+	rdfpipe -i turtle -o xml enriched_data/YearsEnrichedWithLinks_ingest.ttl > enriched_data/YearsEnrichedWithLinks_ingest.rdf
+
+# running skosify on rdfxml input + output
+skosifyxml:
+	skosify -f xml -F xml -o ./enriched_data/skosified_M-C-D-Y3.rdf ./enriched_data/joined_M-C-D-Y3.rdf 2>&1 | tee skosify_$$(date +%F_%Hh%Mm).log
 
 
-skosify:
-	skosify -f xml -F xml -o skosified_joined_M-C-D-Y.rdf joined_M-C-D-Y.rdf 2>&1 | tee skosify_$$(date +%F_%Hh%Mm).log
+## run skosify on ttl input + output
+skosifyttl:
+	skosify -f turtle -F turtle -o skosified_joined_M-C-D-Y.ttl joined_M-C-D-Y.ttl 2>&1 | tee skosifyttl_$$(date +%F_%Hh%Mm).log
 
 ## run ONLY dbpedia
 01dbp:
