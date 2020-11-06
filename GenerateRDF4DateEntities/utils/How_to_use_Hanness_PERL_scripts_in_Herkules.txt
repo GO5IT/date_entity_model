@@ -1,36 +1,52 @@
-How to use Hannes's PERL scripts in Herkules to produce Linked Open Date Entities in RDF
 
-# If data processing would continue, after you switch your computer off, use a screen session. If not, ignore this part
-type: screen -S your_session_name
-leave the screen session by executing: ctrl + a + d
-return back to the screen session type: screen -r.
-to kill a screen, type: exit
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++++++++  How to use Hannes's PERL scripts in Herkules to produce Linked Open Date Entities in RDF  +++++++
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Preparation
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+If data processing would take some hours and continue after you switch your computer off, use a screen session for UNIX. If not, ignore this part.
+
+	type: screen -S your_session_name
+	leave the screen session by executing: ctrl + a + d
+	return back to the screen session type: screen -r.
+	to kill a screen, type: exit
+	to kill all screen wihout entering a screen, type: killall screen
 
 # Docker to start
-docker-manage -e go-perl -a enter
-(OR shortcut is "perl-enter")
+	docker-manage -e go-perl -a enter
+	(OR shortcut is "perl-enter")
 
 # If Docker needs to be restarted, do this before above
-docker-manage -e go-perl -a build
+	docker-manage -e go-perl -a build
 
-# Run script from anywhere, but be awere three files are needed in the same folder to run it. Normally the default path is /home/go/Date_Entity_Model/GenerateRDF4DateEntities/utils
+Note. You can run script from anywhere, but be awere three files are needed in the same folder to run it. Normally the default path is /home/go/Date_Entity_Model/GenerateRDF4DateEntities/utils
 
 
-A) Script to generate Date Entities (rdf/xml)
-See https://redmine.acdh.oeaw.ac.at/issues/17311
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Date Entities generation
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+There is a script to generate Date Entities (rdf/xml). To create the complete range of entities from millannia to days,
+zou need to run dozens of customised scripts for different levels of entities. See https://redmine.acdh.oeaw.ac.at/issues/17311
 
+The following files are required:
 1. run_generate_tests.sh, the main script to run
 2. generate_xxxx_rdf.pl (e.g. generate_year_rdf.pl), which configure the data generation for the level of entity (year, month etc)
 3. DateRDFUtils.pm, a module which is imported to pl
 
 sample_${type}.rdf (name specified run_generate_tests.sh) will be generated as output
 
-B) Script to enrich Date Entities by adding more info from Linked Open Data (eg DBpedia and Wikidata)
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Date Entities enrichment (adding external links)
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+There is a script to enrich Date Entities by adding more info from Linked Open Data (eg DBpedia and Wikidata)
 See details: https://redmine.acdh.oeaw.ac.at/issues/17474 (The success rate of this script is 50%+ for unknown technical problems for chracter encoding. It would be best to split the complete task into a couple of subtasks in order to avoid repeating them. In particular, DBpedia and Wikdiata can be done step by step)
 
-# Run the script with options
-./run_add_existing.sh (-h) (-d) (-S <SKIP_N>) (-L <LIMIT_M>) <INPUT RDF-FILE>
-(example command: ./run_add_existing.sh -d -S 50 -L 5 sample_year.rdf)
+Run the script with options
+	./run_add_existing.sh (-h) (-d) (-S <SKIP_N>) (-L <LIMIT_M>) <INPUT RDF-FILE>
+	(example command: ./run_add_existing.sh -d -S 50 -L 5 sample_year.rdf)
 
 	OPTIONS:
 	-S  <SKIP_N>         Skip <SKIP_N> years before starting to process
@@ -40,13 +56,35 @@ See details: https://redmine.acdh.oeaw.ac.at/issues/17474 (The success rate of t
 	-h                   Print this message
 
 The new script generates the following files with the timestamp of their creation:
-1. .rdf : generated RDF file
-2. .csv log-info provide info about statistics of processing
-3. csv.dump : the same info as .csv but in a format similar to .json -> useers can ignore / DELETE
-4. log...txt : most detailed logging during processing: it records many of the decisions and is valuable in the case Hannes need to debug. -> Users can ignore / but NOT delete
+	1. .rdf : generated RDF file
+	2. .csv log-info provide info about statistics of processing
+	3. csv.dump : the same info as .csv but in a format similar to .json -> useers can ignore / DELETE
+	4. log...txt : most detailed logging during processing: it records many of the decisions and is valuable in the case Hannes need to debug. -> Users can ignore / but NOT delete
+
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+SKOS validation (adding missing property links)
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+SKOSMOS requries skos:broader and skos:narrower both directions (parents and children).
+But the data created above do not have all property links, so we have to validate SKOS. 
+For the validation, we need to compile all files (from millennia to days) into one file by using JOIN command. 
+Then, we use SKOSFIY to fill all missing links.
 
 
-----
-# After rdf/xml is generated, it could be transformed to another format such as turtle (ttl) that would be handier.
-See the bottom of https://redmine.acdh.oeaw.ac.at/projects/acdh-oeaw/wiki/Managing_SKOS_vocabularies_with_Skosmos
-riot format transformation tool is preinstalled in Jena Fuseki which works with a command line
+
+
+
+
+
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Date Entities format conversion (XML to TTL) (if needed)
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+After rdf/xml is generated, it could be transformed to another format such as turtle (ttl) that would be handier. There are 2 ways to do it.
+
+1. Preinstalled Jena/Fuseki riot tool 
+	See the bottom of https://redmine.acdh.oeaw.ac.at/projects/acdh-oeaw/wiki/Managing_SKOS_vocabularies_with_Skosmos
+	riot format transformation tool is preinstalled in Jena Fuseki which works with a command line
+
+2. rdfpipe (see MakeFile for a shortcut functionality by MakeFile):
+	convert:
+		@echo -e "\n# Converting rdfxml to ttl using rdfpipe...\n"
+		rdfpipe -i turtle -o xml enriched_data/YearsEnrichedWithLinks_ingest.ttl > enriched_data/YearsEnrichedWithLinks_ingest.rdf
