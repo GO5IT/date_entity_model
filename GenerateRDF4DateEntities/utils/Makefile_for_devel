@@ -1,0 +1,113 @@
+export SHELL := /bin/bash
+
+############### An archived "development" version of the Makefile for keeping test- and debug-routines
+
+
+## skosify requires exactly ONE file as input.
+## Therefore it is necessary to first join the rdf 
+## which is scattered over different files into one 
+## using: 
+##         join_rdf_files.pl
+
+## joining mon*rdf into MonAll.rdf 
+joinmon:
+	# output rfdfxml
+	time join_rdf_files.pl -O rdfxml -o MonAll.rdf  mon*rdf
+
+
+## joining enriched_data/*rdf  
+join:
+	# output rfdfxml
+	time join_rdf_files.pl -I rdfxml -O rdfxml -o enriched_data/joined_M-C-D-Y3.rdf enriched_data/*rdf
+
+
+## for converting rdfxml to turtle use rdfpipe (very fast! and simple)
+convert:
+	@echo -e "\n# Converting rdfxml to ttl using rdfpipe...\n"
+	rdfpipe -i turtle -o xml enriched_data/YearsEnrichedWithLinks_ingest.ttl > enriched_data/YearsEnrichedWithLinks_ingest.rdf
+
+# running skosify on rdfxml input + output
+skosifyxml:
+	skosify -f xml -F xml -o ./enriched_data/skosified_M-C-D-Y3.rdf ./enriched_data/joined_M-C-D-Y3.rdf 2>&1 | tee skosify_$$(date +%F_%Hh%Mm).log
+
+
+## run skosify on ttl input + output
+skosifyttl:
+	skosify -f turtle -F turtle -o skosified_joined_M-C-D-Y.ttl joined_M-C-D-Y.ttl 2>&1 | tee skosifyttl_$$(date +%F_%Hh%Mm).log
+
+
+## look for foreign characters
+peek:
+	grep '\@m' log_02_Wikidata2020-10-08_12h02m_2099_0_out_02_Wikidata2020-10-08_10h01m_0_2100_out_01_DBPedia2020-10-07_14h34m_0_0_sample_year.rdf.txt | tail
+	
+utf:
+	run_add_existing.sh -d -S 0 -L 0 sample_year.rdf
+
+s:
+	@echo " "
+	@grep -P '(abstract xml:lang="ar"|skos:altLabel.*"mr")' out*BC10*rdf
+	md5sum out*BC10*rdf
+	@echo " "
+
+rm:
+	rm out*BC10* log*BC10* || exit 0
+
+u1:
+	out=out_BC10_1_$$(date +%F_%Hh%Mm%Ss).rdf && \
+	add_existing_rdf.pl -i sample_year_BC10.rdf -o $$out > out.BC10_1.log && \
+	grep 'lang="mr"' $$out; \
+	md5sum $$out; 
+
+test10fetch:
+	dat=$$(date +%F_%Hh%Mm); m5=test10_md5_$$dat.txt; he=test10_mr_$$dat.txt; \
+	echo "" > $$m5; echo "" > $$he; \
+	for i in {1..10}; do \
+	echo "== $$i =="; \
+	out=out_test10_AD74_$${dat}_$${i}.rdf; \
+	add_existing_rdf.pl -d -i sample_year_74AD.xml  -o $$out > out_test10_AD74_$${dat}_$${i}.log;  \
+	md5sum $$out >> $$m5; \
+	done; \
+	grep 'xml:lang="mr"' out_test10_AD74_$${dat}_*.rdf > $$he; \
+	echo -e "\n== Summary mr =="; \
+	cat $$he | cut -f 2 | sort | uniq -c; \
+	echo -e "\n== Summary md5 =="; \
+	cat $$m5 | cut -d ' ' -f 1 | grep -P '...' | sort | uniq -c; \
+	echo -e "\n\n"; \
+	
+
+test10sum:
+	@echo -e "\n== Global Summary mr ==";
+	@cut -f 2 test10_mr*txt |  sort | uniq -c; 
+	@echo -e "\n== Global Summary md5 ==";
+	@cut -d " " -f 1 test10_md5*txt | grep -P '...' |  sort | uniq -c;
+	@echo -e
+
+test10clean:
+	@echo -e "\n== Cleaning temporal files from test10 ...\n";
+	rm -v rm out_test10_* 
+	
+
+test10: test10fetch test10sum
+
+t:
+	out=out_BC10_JUSTECHO_$$(date +%F_%Hh%Mm%Ss).rdf && \
+	add_existing_rdf.pl -t -i BC10earlier_result.rdf -o $$out | tee out.BC10_JUSTECHO.log && \
+	md5sum $$out 
+
+u:
+	 add_existing_rdf.pl -d -i sample_year_BC10.rdf -o out_BC10_1_$$(date +%F_%Hh%Mm%Ss).rdf > out.BC10_1.log
+	 add_existing_rdf.pl -d -i sample_year_BC10.rdf -o out_BC10_2_$$(date +%F_%Hh%Mm%Ss).rdf > out.BC10_2.log
+	 add_existing_rdf.pl -d -i sample_year_BC10.rdf -o out_BC10_3_$$(date +%F_%Hh%Mm%Ss).rdf > out.BC10_3.log
+	 add_existing_rdf.pl -d -i sample_year_BC10.rdf -o out_BC10_4_$$(date +%F_%Hh%Mm%Ss).rdf > out.BC10_4.log
+
+
+ux:
+	 add_existing_rdf.pl -d -i sample_year_BC10.rdf -o out_BC10_1_$$(date +%F_%Hh%Mm%Ss).rdf > out.BC10_1.log
+	 @grep 'skos:altLabel.*"mr"' out*BC10*rdf
+	 rm out*BC10*
+	 add_existing_rdf.pl -d -i sample_year_BC10.rdf -o out_BC10_2_$$(date +%F_%Hh%Mm%Ss).rdf > out.BC10_2.log
+	 @grep 'skos:altLabel.*"mr"' out*BC10*rdf
+	rm out*BC10*
+	 add_existing_rdf.pl -d -i sample_year_BC10.rdf -o out_BC10_3_$$(date +%F_%Hh%Mm%Ss).rdf > out.BC10_3.log
+	 @grep 'skos:altLabel.*"mr"' out*BC10*rdf
+	rm out*BC10*

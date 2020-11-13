@@ -1,133 +1,148 @@
 export SHELL := /bin/bash
 
-## skosify requires exactly ONE file as input.
-## Therefore it is necessary to first join the rdf 
-## which is scattered over different files into one 
-## using: 
-##         join_rdf_files.pl
+### To call a function (i.e. scripts listed below) in the command line, for example, type: make generate_day
+### To follow the entire Workflow, please read the documentation and excute the corresponding script in the given order
 
-## joining mon*rdf into MonAll.rdf 
-joinmon:
-	# output rfdfxml
-	time join_rdf_files.pl -O rdfxml -o MonAll.rdf  mon*rdf
-	# output turtle: NOT recommended ! EXTREMELY slow
-	# time join_rdf_files.pl -O turtle -o MonAll.ttl  mon*rdf
+######################################################################################  
+################## Date Entities generation ##########################################
+######################################################################################
+### This is a script to generate Date Entities (rdf/xml). To create the complete range of entities from millannia to days,
+### you need to run dozens of customised scripts one by one for different levels of entities. See https://redmine.acdh.oeaw.ac.at/issues/17311
+### 
+### The following files are required in the same folder: /home/go/Date_Entity_Model/GenerateRDF4DateEntities/utils:
+### 1. run_generate_tests.sh, the main script to run
+### 2. generate_xxxx_rdf.pl (e.g. generate_year_rdf.pl), which configure the data generation for the level of entity (year, month etc)
+### 3. DateRDFUtils.pm, a module which is imported to pl
+### 
+### Before running a script, configure the target script (generate_xxxx_rdf.pl) and run_generate_tests.sh
+### sample_${type}.rdf (name specified run_generate_tests.sh) will be generated as output
+generate:
+	nohup run_generate_tests.sh
 
-## joining enriched_data/*rdf  
+
+generate_day:
+	generate_day_rdf.pl -l 0 > sample_day.rdf
+
+generate_month:
+	generate_month_rdf.pl -l 0 > sample_month.rdf
+
+generate_year:
+	generate_year_rdf.pl -l 0 > sample_year.rdf
+
+generate_decade:
+	generate_decade_rdf.pl -l 0 > sample_decade.rdf
+
+generate_century:
+	generate_century_rdf.pl -l 0 > sample_century.rdf
+
+generate_millennium:
+	generate_millennium_rdf.pl -l 0 > sample_millennium.rdf
+
+
+## test: using file-name as rule-name: then this rule will only be called 
+##       if file does not yet exist
+##   Otherwise it will say: 
+# make sample_millennium.rdf
+# make: 'sample_millennium.rdf' is up to date.
+sample_millennium.rdf:
+	generate_millennium_rdf.pl -l 0 > sample_millennium.rdf
+
+generate_all: generate_day generate_month generate_year generate_decade generate_century generate_millenium
+
+
+
+
+######################################################################################  
+################## Date Entities enrichment (adding external links) ##################
+######################################################################################
+### This is the script to enrich Date Entities by adding more info from Linked Open Data (eg DBpedia and Wikidata)
+### See details: https://redmine.acdh.oeaw.ac.at/issues/17474 (The success rate of this script is 50%+ for unknown technical problems for chracter encoding. It would be best to split the complete task into a couple of subtasks in order to avoid repeating them. In particular, DBpedia and Wikdiata can be done step by step) 
+### 
+### Run the script with options
+### 	./run_add_existing.sh (-h) (-d) (-S <SKIP_N>) (-L <LIMIT_M>) <INPUT RDF-FILE>
+### 	(example command: ./run_add_existing.sh -d -S 50 -L 5 sample_year.rdf)
+### 
+### 	OPTIONS:
+### 	-S  <SKIP_N>         Skip <SKIP_N> years before starting to process
+### 	-L  <LIMIT_M>        Limit processing to a total of <LIMIT_M> years
+###     	                 "0" means: there is NO limit
+### 	-d                   Debug mode
+### 	-h                   Print this message
+### 
+### The new script generates the following files with the timestamp of their creation:
+### 	1. .rdf : generated RDF file
+### 	2. .csv log-info provide info about statistics of processing
+### 	3. csv.dump : the same info as .csv but in a format similar to .json -> useers can ignore / DELETE
+### 	4. log...txt : most detailed logging during processing: it records many of the decisions and is valuable in the case Hannes need to debug. -> Users can ignore / but NOT delete
+
+enrich_year:
+	@echo "## Running add_existing_rdf.pl for year ..."
+	nohup run_add_existing.sh -d -S 0 -L 0 sample_year.rdf
+
+enrich_month:
+	@echo "## Running add_existing_rdf.pl for month ..."
+	nohup run_add_existing.sh -d -S 0 -L 0 mon4.rdf
+
+######################################################################################  
+################## SKOS validation (adding missing property links)  ##################
+######################################################################################
+### SKOSMOS requries skos:broader and skos:narrower both directions (parents and children).
+### But the data created above do not have all property links, so we have to validate SKOS. 
+### For the validation, we need to compile all files (from millennia to days) into one file by using JOIN command (1). 
+### Then, we use SKOSFIY to fill all missing links (2).
+
+
+######################################################################################  
+################## SKOS validation (1) JOIN ##########################################
+######################################################################################
+### joining all .rdf files in enriched_data folder (i.e. enriched_data/*rdf) 
+### Input format: -I rdfxml
+### Output format: -O rdfxml
+### Output file name: enriched_data/joined_M-C-D-Y3.rdf
+### Input files: enriched_data/*rdf
 join:
 	# output rfdfxml
 	time join_rdf_files.pl -I rdfxml -O rdfxml -o enriched_data/joined_M-C-D-Y3.rdf enriched_data/*rdf
-	# output turtle: NOT recommended ! EXTREMELY slow
-	# time join_rdf_files.pl -I rdfxml -O turtle -o joined_M-C-D-Y.ttl enriched_data/*rdf
 
-## for converting rdfxml to turtle use rdfpipe (very fast! and simple)
-convert:
-	@echo -e "\n# Converting rdfxml to ttl using rdfpipe...\n"
-	rdfpipe -i turtle -o xml enriched_data/YearsEnrichedWithLinks_ingest.ttl > enriched_data/YearsEnrichedWithLinks_ingest.rdf
 
-# running skosify on rdfxml input + output
+######################################################################################  
+################## SKOS validation (2) SKOSIFY #######################################
+######################################################################################
+### Input format: -f xml
+### Output format: -F xml
+### Output file name: ./enriched_data/skosified_M-C-D-Y3.rdf
+### Input files: ./enriched_data/joined_M-C-D-Y3.rdf
 skosifyxml:
 	skosify -f xml -F xml -o ./enriched_data/skosified_M-C-D-Y3.rdf ./enriched_data/joined_M-C-D-Y3.rdf 2>&1 | tee skosify_$$(date +%F_%Hh%Mm).log
-
 
 ## run skosify on ttl input + output
 skosifyttl:
 	skosify -f turtle -F turtle -o skosified_joined_M-C-D-Y.ttl joined_M-C-D-Y.ttl 2>&1 | tee skosifyttl_$$(date +%F_%Hh%Mm).log
 
-## run ONLY dbpedia
-01dbp:
-	nohup run_add_existing_stepbystep.sh -d -r 01_DBPedia sample_year.rdf 
-
-## run 02_Wikidata _only_ for the first 2.100 years; these should be unproblematic!
-02base:
-	nohup run_add_existing_stepbystep.sh -d -r 02_Wikidata \
-	       -S 0 -L 2100 \
-       	       out_01_DBPedia2020-10-07_14h34m_0_0_sample_year.rdf
-
-### continue running 02_Wikidata on result of 02base
-02cont:
-	nohup run_add_existing_stepbystep.sh -d -r 02_Wikidata \
-               -S 2099  -L 0 \
-	       out_02_Wikidata2020-10-08_10h01m_0_2100_out_01_DBPedia2020-10-07_14h34m_0_0_sample_year.rdf
-
-## look for foreign characters
-peek:
-	grep '\@m' log_02_Wikidata2020-10-08_12h02m_2099_0_out_02_Wikidata2020-10-08_10h01m_0_2100_out_01_DBPedia2020-10-07_14h34m_0_0_sample_year.rdf.txt | tail
-	
-test: rm u1
-
-y74:
-	add_existing_rdf.pl -d -i sample_year_74AD.xml -o out_sample_year_74AD.xml > out_sample_year_74AD.log 
+######################################################################################  
+########### Date Entities format conversion (XML to TTL) (if needed) #################
+######################################################################################
+### After rdf/xml is generated, it could be transformed to another format such as turtle (ttl) that would be handier. There are 2 ways to do it.
+### 
+### 1. Preinstalled Jena/Fuseki riot tool 
+### 	See the bottom of https://redmine.acdh.oeaw.ac.at/projects/acdh-oeaw/wiki/Managing_SKOS_vocabularies_with_Skosmos
+### 	riot format transformation tool is preinstalled in Jena Fuseki which works with a command line
+### 
+### 2. rdfpipe (see MakeFile for a shortcut functionality by MakeFile)(very fast! and simple)
+### Input format: -i turtle
+### Output format: -o xml
+### Input files: enriched_data/YearsEnrichedWithLinks_ingest.ttl
+### Output file name: enriched_data/YearsEnrichedWithLinks_ingest.rdf
+convert:
+	@echo -e "\n# Converting rdfxml to ttl using rdfpipe...\n"
+	rdfpipe -i turtle -o xml enriched_data/YearsEnrichedWithLinks_ingest.ttl > enriched_data/YearsEnrichedWithLinks_ingest.rdf
 
 
-utf:
-	run_add_existing.sh -d -S 0 -L 0 sample_year.rdf
 
-s:
-	@echo " "
-	@grep -P '(abstract xml:lang="ar"|skos:altLabel.*"mr")' out*BC10*rdf
-	md5sum out*BC10*rdf
-	@echo " "
-
-rm:
-	rm out*BC10* log*BC10* || exit 0
-
-u1:
-	out=out_BC10_1_$$(date +%F_%Hh%Mm%Ss).rdf && \
-	add_existing_rdf.pl -i sample_year_BC10.rdf -o $$out > out.BC10_1.log && \
-	grep 'lang="mr"' $$out; \
-	md5sum $$out; 
-
-test10fetch:
-	dat=$$(date +%F_%Hh%Mm); m5=test10_md5_$$dat.txt; he=test10_mr_$$dat.txt; \
-	echo "" > $$m5; echo "" > $$he; \
-	for i in {1..10}; do \
-	echo "== $$i =="; \
-	out=out_test10_AD74_$${dat}_$${i}.rdf; \
-	add_existing_rdf.pl -d -i sample_year_74AD.xml  -o $$out > out_test10_AD74_$${dat}_$${i}.log;  \
-	md5sum $$out >> $$m5; \
-	done; \
-	grep 'xml:lang="mr"' out_test10_AD74_$${dat}_*.rdf > $$he; \
-	echo -e "\n== Summary mr =="; \
-	cat $$he | cut -f 2 | sort | uniq -c; \
-	echo -e "\n== Summary md5 =="; \
-	cat $$m5 | cut -d ' ' -f 1 | grep -P '...' | sort | uniq -c; \
-	echo -e "\n\n"; \
-	
-
-test10sum:
-	@echo -e "\n== Global Summary mr ==";
-	@cut -f 2 test10_mr*txt |  sort | uniq -c; 
-	@echo -e "\n== Global Summary md5 ==";
-	@cut -d " " -f 1 test10_md5*txt | grep -P '...' |  sort | uniq -c;
-	@echo -e
-
-test10clean:
-	@echo -e "\n== Cleaning temporal files from test10 ...\n";
-	rm -v rm out_test10_* 
-	
-
-test10: test10fetch test10sum
-
-t:
-	out=out_BC10_JUSTECHO_$$(date +%F_%Hh%Mm%Ss).rdf && \
-	add_existing_rdf.pl -t -i BC10earlier_result.rdf -o $$out | tee out.BC10_JUSTECHO.log && \
-	md5sum $$out 
-
-u:
-	 add_existing_rdf.pl -d -i sample_year_BC10.rdf -o out_BC10_1_$$(date +%F_%Hh%Mm%Ss).rdf > out.BC10_1.log
-	 add_existing_rdf.pl -d -i sample_year_BC10.rdf -o out_BC10_2_$$(date +%F_%Hh%Mm%Ss).rdf > out.BC10_2.log
-	 add_existing_rdf.pl -d -i sample_year_BC10.rdf -o out_BC10_3_$$(date +%F_%Hh%Mm%Ss).rdf > out.BC10_3.log
-	 add_existing_rdf.pl -d -i sample_year_BC10.rdf -o out_BC10_4_$$(date +%F_%Hh%Mm%Ss).rdf > out.BC10_4.log
+#### No need (temporally held below) 
+## joining mon*rdf into MonAll.rdf 
+joinmon:
+	# output rfdfxml
+	time join_rdf_files.pl -O rdfxml -o MonAll.rdf  mon*rdf
 
 
-ux:
-	 add_existing_rdf.pl -d -i sample_year_BC10.rdf -o out_BC10_1_$$(date +%F_%Hh%Mm%Ss).rdf > out.BC10_1.log
-	 @grep 'skos:altLabel.*"mr"' out*BC10*rdf
-	 rm out*BC10*
-	 add_existing_rdf.pl -d -i sample_year_BC10.rdf -o out_BC10_2_$$(date +%F_%Hh%Mm%Ss).rdf > out.BC10_2.log
-	 @grep 'skos:altLabel.*"mr"' out*BC10*rdf
-	rm out*BC10*
-	 add_existing_rdf.pl -d -i sample_year_BC10.rdf -o out_BC10_3_$$(date +%F_%Hh%Mm%Ss).rdf > out.BC10_3.log
-	 @grep 'skos:altLabel.*"mr"' out*BC10*rdf
-	rm out*BC10*

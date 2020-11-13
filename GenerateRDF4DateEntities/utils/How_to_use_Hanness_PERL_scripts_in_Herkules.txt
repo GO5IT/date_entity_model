@@ -5,7 +5,7 @@
 
 
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-Preparation
+Understanding and Preparation
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 If data processing would take some hours and continue after you switch your computer off, use a screen session for UNIX. If not, ignore this part.
 
@@ -15,76 +15,115 @@ If data processing would take some hours and continue after you switch your comp
 	to kill a screen, type: exit
 	to kill all screen wihout entering a screen, type: killall screen
 
-# Docker to start
+If screens are killed before killing the running scripts, scripts will run further. In this case, you need to
+kill the scripts. 
+	to find which process to kill, type: ps -u go
+	to kill a process (e.g. 27686 pts/86 run_add_existing.sh), type (-9 is a global parameter that should not be changed): kill -9 27686
+
+Start Docker and enter Perl environment. This should be done every time after creating a new screen session.
 	docker-manage -e go-perl -a enter
 	(OR shortcut is "perl-enter")
 
-# If Docker needs to be restarted, do this before above
+If Docker needs to be restarted, do this before above
 	docker-manage -e go-perl -a build
 
-Note. You can run script from anywhere, but be awere three files are needed in the same folder to run it. Normally the default path is /home/go/Date_Entity_Model/GenerateRDF4DateEntities/utils
+There is a Make file which complies execution scripts and sits /home/go/Date_Entity_Model/GenerateRDF4DateEntities/utils In the command line, we call a function defined in Make File to execute the tasks below. You can run script from anywhere.
+For example, if a function is called enrich_year and to be called from the commandline, type: make enrich_year
 
 
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-Date Entities generation
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-There is a script to generate Date Entities (rdf/xml). To create the complete range of entities from millannia to days,
-zou need to run dozens of customised scripts for different levels of entities. See https://redmine.acdh.oeaw.ac.at/issues/17311
+######################################################################################  
+################## Date Entities generation ##########################################
+######################################################################################
+### This is a script to generate Date Entities (rdf/xml). To create the complete range of entities from millannia to days,
+### you need to run dozens of customised scripts one by one for different levels of entities. See https://redmine.acdh.oeaw.ac.at/issues/17311
+### 
+### The following files are required in the same folder: /home/go/Date_Entity_Model/GenerateRDF4DateEntities/utils:
+### 1. run_generate_tests.sh, the main script to run
+### 2. generate_xxxx_rdf.pl (e.g. generate_year_rdf.pl), which configure the data generation for the level of entity (year, month etc)
+### 3. DateRDFUtils.pm, a module which is imported to pl
+### 
+### Before running a script, configure the target script (generate_xxxx_rdf.pl) and run_generate_tests.sh
+### sample_${type}.rdf (name specified run_generate_tests.sh) will be generated as output
 
-The following files are required:
-1. run_generate_tests.sh, the main script to run
-2. generate_xxxx_rdf.pl (e.g. generate_year_rdf.pl), which configure the data generation for the level of entity (year, month etc)
-3. DateRDFUtils.pm, a module which is imported to pl
+	generate_day_rdf.pl -l 0 > sample_day.rdf
 
-sample_${type}.rdf (name specified run_generate_tests.sh) will be generated as output
+######################################################################################  
+################## Date Entities enrichment (adding external links) ##################
+######################################################################################
+### This is the script to enrich Date Entities by adding more info from Linked Open Data (eg DBpedia and Wikidata)
+### See details: https://redmine.acdh.oeaw.ac.at/issues/17474 (The success rate of this script is 50%+ for unknown technical problems for chracter encoding. It would be best to split the complete task into a couple of subtasks in order to avoid repeating them. In particular, DBpedia and Wikdiata can be done step by step). As this process may take days, it is a good practice to check if the encoding probelm occurs, or not, during the enrichment. Use command line to search a problem (below). This will not interrupt the enrichment.
+### 
+### Run the script with options
+### 	./run_add_existing.sh (-h) (-d) (-S <SKIP_N>) (-L <LIMIT_M>) <INPUT RDF-FILE>
+### 	(example command: ./run_add_existing.sh -d -S 50 -L 5 sample_year.rdf)
+### 
+### 	OPTIONS:
+### 	-S  <SKIP_N>         Skip <SKIP_N> years before starting to process
+### 	-L  <LIMIT_M>        Limit processing to a total of <LIMIT_M> years
+###     	                 "0" means: there is NO limit
+### 	-d                   Debug mode
+### 	-h                   Print this message
+### 
+### The new script generates the following files with the timestamp of their creation:
+### 	1. .rdf : generated RDF file
+### 	2. .csv log-info provide info about statistics of processing
+### 	3. csv.dump : the same info as .csv but in a format similar to .json -> useers can ignore / DELETE
+### 	4. log...txt : most detailed logging during processing: it records many of the decisions and is valuable in the case Hannes need to debug. -> Users can ignore / but NOT delete
+###	Search function (during enrichment process). Simply type in the command line: grep 'keyword' filename | tail
+###	For example,
+###		grep '@ja' log*mon4* | tail
 
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-Date Entities enrichment (adding external links)
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-There is a script to enrich Date Entities by adding more info from Linked Open Data (eg DBpedia and Wikidata)
-See details: https://redmine.acdh.oeaw.ac.at/issues/17474 (The success rate of this script is 50%+ for unknown technical problems for chracter encoding. It would be best to split the complete task into a couple of subtasks in order to avoid repeating them. In particular, DBpedia and Wikdiata can be done step by step)
+	run_add_existing.sh -d -S 0 -L 0 sample_year.rdf
+	
+	run_add_existing.sh -d -S 0 -L 0 enriched_data/out_2020-10-13_18h30m_0_0_mon1.rdf
 
-Run the script with options
-	./run_add_existing.sh (-h) (-d) (-S <SKIP_N>) (-L <LIMIT_M>) <INPUT RDF-FILE>
-	(example command: ./run_add_existing.sh -d -S 50 -L 5 sample_year.rdf)
+######################################################################################  
+################## SKOS validation (adding missing property links)  ##################
+######################################################################################
+### SKOSMOS requries skos:broader and skos:narrower both directions (parents and children).
+### But the data created above do not have all property links, so we have to validate SKOS. 
+### For the validation, we need to compile all files (from millennia to days) into one file by using JOIN command (1). 
+### Then, we use SKOSFIY to fill all missing links (2).
 
-	OPTIONS:
-	-S  <SKIP_N>         Skip <SKIP_N> years before starting to process
-	-L  <LIMIT_M>        Limit processing to a total of <LIMIT_M> years
-    	                 "0" means: there is NO limit
-	-d                   Debug mode
-	-h                   Print this message
+######################################################################################  
+################## SKOS validation (1) JOIN ##########################################
+######################################################################################
+### joining all .rdf files in enriched_data folder (i.e. enriched_data/*rdf) 
+### Input format: -I rdfxml
+### Output format: -O rdfxml
+### Output file name: enriched_data/joined_M-C-D-Y3.rdf
+### Input files: enriched_data/*rdf
 
-The new script generates the following files with the timestamp of their creation:
-	1. .rdf : generated RDF file
-	2. .csv log-info provide info about statistics of processing
-	3. csv.dump : the same info as .csv but in a format similar to .json -> useers can ignore / DELETE
-	4. log...txt : most detailed logging during processing: it records many of the decisions and is valuable in the case Hannes need to debug. -> Users can ignore / but NOT delete
+	# output rfdfxml
+	join_rdf_files.pl -I rdfxml -O rdfxml -o enriched_data/joined_M-C-D-Y3.rdf enriched_data/*rdf
 
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-SKOS validation (adding missing property links)
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-SKOSMOS requries skos:broader and skos:narrower both directions (parents and children).
-But the data created above do not have all property links, so we have to validate SKOS. 
-For the validation, we need to compile all files (from millennia to days) into one file by using JOIN command. 
-Then, we use SKOSFIY to fill all missing links.
+######################################################################################  
+################## SKOS validation (2) SKOSIFY #######################################
+######################################################################################
+### Input format: -f xml
+### Output format: -F xml
+### Output file name: ./enriched_data/skosified_M-C-D-Y3.rdf
+### Input files: ./enriched_data/joined_M-C-D-Y3.rdf
 
+	skosify -f xml -F xml -o ./enriched_data/skosified_M-C-D-Y3.rdf ./enriched_data/joined_M-C-D-Y3.rdf 2>&1 | tee skosify_$$(date +%F_%Hh%Mm).log
 
+## run skosify on ttl input + output
+	skosify -f turtle -F turtle -o skosified_joined_M-C-D-Y.ttl joined_M-C-D-Y.ttl 2>&1 | tee skosifyttl_$$(date +%F_%Hh%Mm).log
 
+######################################################################################  
+########### Date Entities format conversion (XML to TTL) (if needed) #################
+######################################################################################
+### After rdf/xml is generated, it could be transformed to another format such as turtle (ttl) that would be handier. There are 2 ways to do it.
+### 
+### 1. Preinstalled Jena/Fuseki riot tool 
+### 	See the bottom of https://redmine.acdh.oeaw.ac.at/projects/acdh-oeaw/wiki/Managing_SKOS_vocabularies_with_Skosmos
+### 	riot format transformation tool is preinstalled in Jena Fuseki which works with a command line
+### 
+### 2. rdfpipe (see MakeFile for a shortcut functionality by MakeFile)(very fast! and simple)
+### Input format: -i turtle
+### Output format: -o xml
+### Input files: enriched_data/YearsEnrichedWithLinks_ingest.ttl
+### Output file name: enriched_data/YearsEnrichedWithLinks_ingest.rdf
 
+	rdfpipe -i turtle -o xml enriched_data/YearsEnrichedWithLinks_ingest.ttl > enriched_data/YearsEnrichedWithLinks_ingest.rdf
 
-
-
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-Date Entities format conversion (XML to TTL) (if needed)
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-After rdf/xml is generated, it could be transformed to another format such as turtle (ttl) that would be handier. There are 2 ways to do it.
-
-1. Preinstalled Jena/Fuseki riot tool 
-	See the bottom of https://redmine.acdh.oeaw.ac.at/projects/acdh-oeaw/wiki/Managing_SKOS_vocabularies_with_Skosmos
-	riot format transformation tool is preinstalled in Jena Fuseki which works with a command line
-
-2. rdfpipe (see MakeFile for a shortcut functionality by MakeFile):
-	convert:
-		@echo -e "\n# Converting rdfxml to ttl using rdfpipe...\n"
-		rdfpipe -i turtle -o xml enriched_data/YearsEnrichedWithLinks_ingest.ttl > enriched_data/YearsEnrichedWithLinks_ingest.rdf
