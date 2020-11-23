@@ -102,7 +102,29 @@ enrich_month:
 ### Input files: enriched_data/*rdf
 join:
 	# output rfdfxml
-	time join_rdf_files.pl -I rdfxml -O rdfxml -o enriched_data/joined_M-C-D-Y3.rdf enriched_data/*rdf
+	time join_rdf_files.pl -I rdfxml -O rdfxml -o enriched_data/productionM-C-D-Y-M-D/joined_M-C-D-Y-M-D.rdf enriched_data/productionM-C-D-Y-M-D/*rdf
+
+######################################################################################  
+################## SKOS validation (1) JOIN ##########################################
+## quickjoin: just concatenate out*rdf 
+### Input files: enriched_data/*rd
+quickjoin:
+	# 1 joined - just without the _last_ line
+	head -n -1 enriched_data/productionM-C-D-Y-M-D/joined_M-C-D-Y3_2.rdf > quickjoin_M-C-D-Y-M-D.rdf
+	# 2 out ...
+	for f in $$(ls enriched_data/productionM-C-D-Y-M-D/out*rdf); do \
+		echo "$$f ..."; \
+		cat  $$f |  tail -n +3 | head -n -1  >> quickjoin_M-C-D-Y-M-D.rdf; \
+	done;
+	## 3 sample ...
+	for f in $$(ls enriched_data/productionM-C-D-Y-M-D/sample*rdf); do \
+		echo "$$f ..."; \
+		cat  $$f | tail -n +14 |  head -n -1  >> quickjoin_M-C-D-Y-M-D.rdf; \
+	done;
+     ## closing element: 
+	echo '</rdf:RDF>' >> quickjoin_M-C-D-Y-M-D.rdf;
+	wc -l quickjoin_M-C-D-Y-M-D.rdf;
+
 
 
 ######################################################################################  
@@ -113,7 +135,11 @@ join:
 ### Output file name: ./enriched_data/skosified_M-C-D-Y3.rdf
 ### Input files: ./enriched_data/joined_M-C-D-Y3.rdf
 skosifyxml:
-	skosify -f xml -F xml -o ./enriched_data/skosified_M-C-D-Y3.rdf ./enriched_data/joined_M-C-D-Y3.rdf 2>&1 | tee skosify_$$(date +%F_%Hh%Mm).log
+	skosify -f xml -F xml -o ./enriched_data/productionM-C-D-Y-M-D/skosified_M-C-D-Y-M-D.rdf ./enriched_data/productionM-C-D-Y-M-D/joined_M-C-D-Y-M-D.rdf 2>&1 | tee skosify_$$(date +%F_%Hh%Mm).log
+
+
+quickskosify:
+	nohup skosify -f xml -F xml -o quickskosified_M-C-D-Y-M-D.rdf quickjoin_M-C-D-Y-M-D.rdf > quickskosify_$$(date +%F_%Hh%Mm).log
 
 ## run skosify on ttl input + output
 skosifyttl:
@@ -135,7 +161,7 @@ skosifyttl:
 ### Output file name: enriched_data/YearsEnrichedWithLinks_ingest.rdf
 convert:
 	@echo -e "\n# Converting rdfxml to ttl using rdfpipe...\n"
-	rdfpipe -i turtle -o xml enriched_data/YearsEnrichedWithLinks_ingest.ttl > enriched_data/YearsEnrichedWithLinks_ingest.rdf
+	rdfpipe -i turtle -o xml enriched_data/CenturyEnriched_date3_PercentCenturiesExcluded.ttl > enriched_data/CenturyEnriched_date3_PercentCenturiesExcluded.rdf
 
 
 
