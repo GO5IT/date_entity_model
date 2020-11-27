@@ -61,14 +61,23 @@ generate_all: generate_day generate_month generate_year generate_decade generate
 #</rdf:RDF>
 
 split:
-	xml_split -s 500M -n 3 -b split_skosified quickskosified_M-C-D-Y-M-D.rdf ; 
-	perl -pi -e 's{></rdf:RDF>}{>\n</rdf:RDF>}' split_skosified-000.rdf
-	for f in $$(perl -ne 'if (m{:(split.*rdf)\?>}) { print "$$1\n"; }' split_skosified-000.rdf); do \
+	xml_split -s 500M -n 3 -b split_quickskosified_M-C-D-Y-M-D_PRODUCTION_URI   quickskosified_M-C-D-Y-M-D_PRODUCTION_URI_archive.rdf ; 
+	## will produce split_quickskosified_M-C-D-Y-M-D_PRODUCTION_URI-000.xml as META-file.
+	perl -pi -e 's{></rdf:RDF>}{>\n</rdf:RDF>}' split_quickskosified_M-C-D-Y-M-D_PRODUCTION_URI-000.xml
+	for f in $$(perl -ne 'if (m{:(split.*rdf)\?>}) { print "$$1\n"; }' split_quickskosified_M-C-D-Y-M-D_PRODUCTION_URI-000.xml ); do \
 		echo "$$f ..."; \
-		grep -P "(xml version|rdf:RDF|$$f)"  split_skosified-000.rdf > $$f.merge; \
-		xml_merge $$f.merge > $$f.xml; \
+		grep -P "(xml version|rdf:RDF|$$f)" split_quickskosified_M-C-D-Y-M-D_PRODUCTION_URI-000.xml > $$f.merge; \
+		xml_merge $$f.merge > $$f.FULL.xml; \
 	done;
-	
+
+#split:
+#	xml_split -s 500M -n 3 -b split_skosified quickskosified_M-C-D-Y-M-D.rdf ; 
+#	perl -pi -e 's{></rdf:RDF>}{>\n</rdf:RDF>}' split_skosified-000.rdf
+#	for f in $$(perl -ne 'if (m{:(split.*rdf)\?>}) { print "$$1\n"; }' split_skosified-000.rdf); do \
+#		echo "$$f ..."; \
+#		grep -P "(xml version|rdf:RDF|$$f)"  split_skosified-000.rdf > $$f.merge; \
+#		xml_merge $$f.merge > $$f.xml; \
+#	done;
 
 ######################################################################################  
 ################## Date Entities enrichment (adding external links) ##################
