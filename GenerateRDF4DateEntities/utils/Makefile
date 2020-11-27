@@ -50,7 +50,25 @@ sample_millennium.rdf:
 generate_all: generate_day generate_month generate_year generate_decade generate_century generate_millenium
 
 
+## use xml_split + xml_merge to split final result into chunks of 500 MB. 
+## xml_split produces a "meta-file" ...
+#<?xml version="1.0" encoding="utf-8"?>
+#<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:dbo="http://dbpedia.org/ontology/" xmlns:dc="http://purl.org/dc/elements/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:foaf="http://xmlns.com/foaf/0.1/" xmlns:owl="http://www.w3.org/2002/07/owl#" xmlns:prov="http://www.w3.org/ns/prov#" xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#" xmlns:schema="http://schema.org/" xmlns:skos="http://www.w3.org/2004/02/skos/core#" xmlns:time="http://www.w3.org/2006/time#" xmlns:wdt="http://www.wikidata.org/prop/direct/" xmlns:wdtn="http://www.wikidata.org/prop/direct-normalized/" xmlns:xsd="http://www.w3.org/2001/XMLSchema#">
+#<?merge subdocs = 0 :split-01.rdf?>
+#<?merge subdocs = 0 :split-02.rdf?>
+#<?merge subdocs = 0 :split-03.rdf?>
+#<?merge subdocs = 0 :split-04.rdf?>
+#</rdf:RDF>
 
+split:
+	xml_split -s 500M -n 3 -b split_skosified quickskosified_M-C-D-Y-M-D.rdf ; 
+	perl -pi -e 's{></rdf:RDF>}{>\n</rdf:RDF>}' split_skosified-000.rdf
+	for f in $$(perl -ne 'if (m{:(split.*rdf)\?>}) { print "$$1\n"; }' split_skosified-000.rdf); do \
+		echo "$$f ..."; \
+		grep -P "(xml version|rdf:RDF|$$f)"  split_skosified-000.rdf > $$f.merge; \
+		xml_merge $$f.merge > $$f.xml; \
+	done;
+	
 
 ######################################################################################  
 ################## Date Entities enrichment (adding external links) ##################
