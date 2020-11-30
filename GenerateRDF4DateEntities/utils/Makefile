@@ -60,24 +60,32 @@ generate_all: generate_day generate_month generate_year generate_decade generate
 #<?merge subdocs = 0 :split-04.rdf?>
 #</rdf:RDF>
 
+## remove older results!
+cleansplit:
+	rm -f splitted_large_xml*
+
+## for processing **another** large XML file ONLY change the filename - 
+## the output(s) will be called: "splitted_large_xml ..." 
+## rename these to a convenient name afterwards
 split:
-	xml_split -s 500M -n 3 -b split_quickskosified_M-C-D-Y-M-D_PRODUCTION_URI   quickskosified_M-C-D-Y-M-D_PRODUCTION_URI_archive.rdf ; 
-	## will produce split_quickskosified_M-C-D-Y-M-D_PRODUCTION_URI-000.xml as META-file.
-	perl -pi -e 's{></rdf:RDF>}{>\n</rdf:RDF>}' split_quickskosified_M-C-D-Y-M-D_PRODUCTION_URI-000.xml
-	for f in $$(perl -ne 'if (m{:(split.*rdf)\?>}) { print "$$1\n"; }' split_quickskosified_M-C-D-Y-M-D_PRODUCTION_URI-000.xml ); do \
+	xml_split -s 500M -n 3 -b splitted_large_xml  quickskosified_M-C-D-Y-M-D_PRODUCTION_URI_archive_MORExmlns.rdf ; 
+	## will produce splitted_large_xml-000.rdf as META-file.
+	## minimal cleanup
+	perl -pi -e 's{></rdf:RDF>}{>\n</rdf:RDF>}' splitted_large_xml-000.rdf
+
+# xml_split produces "fragments" whithout xml-header which are to be merged into the "original" 
+# by xml_merge. 
+standalone:
+	## take the merge-config produced by xml_split and make a temporary merge-config for 
+	## every "sub-file" found there, and perform xml_merge
+	for f in $$(perl -ne 'if (m{:(split.*rdf)\?>}) { print "$$1\n"; }' splitted_large_xml-000.rdf ); do \
 		echo "$$f ..."; \
-		grep -P "(xml version|rdf:RDF|$$f)" split_quickskosified_M-C-D-Y-M-D_PRODUCTION_URI-000.xml > $$f.merge; \
+		grep -P "(^>|xml version|rdf:RDF|xmlns:|$$f)" splitted_large_xml-000.rdf > $$f.merge; \
 		xml_merge $$f.merge > $$f.FULL.xml; \
 	done;
 
-#split:
-#	xml_split -s 500M -n 3 -b split_skosified quickskosified_M-C-D-Y-M-D.rdf ; 
-#	perl -pi -e 's{></rdf:RDF>}{>\n</rdf:RDF>}' split_skosified-000.rdf
-#	for f in $$(perl -ne 'if (m{:(split.*rdf)\?>}) { print "$$1\n"; }' split_skosified-000.rdf); do \
-#		echo "$$f ..."; \
-#		grep -P "(xml version|rdf:RDF|$$f)"  split_skosified-000.rdf > $$f.merge; \
-#		xml_merge $$f.merge > $$f.xml; \
-#	done;
+splitfull: cleansplit split standalone
+
 
 ######################################################################################  
 ################## Date Entities enrichment (adding external links) ##################
